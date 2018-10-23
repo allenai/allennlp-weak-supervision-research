@@ -10,8 +10,3 @@ coverage:
         threshold: 1%
     changes: false
 comment: false
-ignore:
-  - "allennlp/custom_extensions"
-  - "allennlp/tests"
-  - "allennlp/tools/squad_eval.py"
-  - "allennlp/tools/wikitables_evaluator.py"

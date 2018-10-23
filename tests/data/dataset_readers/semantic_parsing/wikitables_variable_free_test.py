@@ -1,3 +1,5 @@
+# pylint: disable=no-self-use
+
 from allennlp.common import Params
 from allennlp.common.testing import AllenNlpTestCase
 from allennlp.semparse.worlds import WikiTablesVariableFreeWorld
@@ -66,12 +68,12 @@ def assert_dataset_correct(dataset):
 
 class WikiTablesVariableFreeDatasetReaderTest(AllenNlpTestCase):
     def test_reader_reads(self):
-        offline_search_directory = self.FIXTURES_ROOT / "data" / "wikitables" / "action_space_walker_output"
+        offline_search_directory = "fixtures/data/wikitables/action_space_walker_output"
         params = {
                 'lazy': False,
-                'tables_directory': self.FIXTURES_ROOT / "data" / "wikitables",
+                'tables_directory': "fixtures/data/wikitables",
                 'offline_logical_forms_directory': offline_search_directory,
                 }
         reader = WikiTablesVariableFreeDatasetReader.from_params(Params(params))
-        dataset = reader.read(str(self.FIXTURES_ROOT / "data" / "wikitables" / "sample_data.examples"))
+        dataset = reader.read("fixtures/data/wikitables/sample_data.examples")
         assert_dataset_correct(dataset)

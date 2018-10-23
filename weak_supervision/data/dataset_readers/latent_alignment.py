@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 class LatentAlignmentDatasetReader(DatasetReader):
     def __init__(self,
                  dpd_directory: str,
-                 max_logical_forms: int=500,
+                 max_logical_forms: int = 500,
                  lazy: bool = False) -> None:
         super().__init__(lazy)
         self._dpd_directory = dpd_directory

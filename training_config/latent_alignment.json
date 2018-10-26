@@ -4,8 +4,8 @@
     "max_logical_forms": 200,
     "dpd_directory": "/wikitables/dpd_output/"
   },
-  "train_data_path": "train.json",
-  "validation_data_path": "dev.json",
+  "train_data_path": "https://s3-us-west-2.amazonaws.com/allennlp-research/weak-supervision/latent-alignment/train_small.json",
+  "validation_data_path": "https://s3-us-west-2.amazonaws.com/allennlp-research/weak-supervision/latent-alignment/dev_small.json",
   "model": {
     "type": "latent_alignment",
     "utterance_embedder": {

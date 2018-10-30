@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 # Script to launch AllenNLP Beaker jobs.
+# pylint: disable=all
 
 import argparse
 import os

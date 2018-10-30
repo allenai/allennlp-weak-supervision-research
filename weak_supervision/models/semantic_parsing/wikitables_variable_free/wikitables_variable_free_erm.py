@@ -332,7 +332,7 @@ class WikiTablesVariableFreeErm(WikiTablesVariableFreeParser):
         """
         terminal_indices = []
         target_checklist_list = []
-        agenda_indices_set = set([int(x) for x in agenda.squeeze(0).detach().cpu().numpy()])
+        agenda_indices_set = {int(x) for x in agenda.squeeze(0).detach().cpu().numpy()}
         # We want to return checklist target and terminal actions that are column vectors to make
         # computing softmax over the difference between checklist and target easier.
         for index, action in enumerate(all_actions):

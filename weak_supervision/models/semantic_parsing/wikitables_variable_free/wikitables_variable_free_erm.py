@@ -374,7 +374,16 @@ class WikiTablesVariableFreeErm(WikiTablesVariableFreeParser):
         action_strings = [state.possible_actions[batch_index][i][0] for i in action_history]
         logical_form = world.get_logical_form(action_strings)
         target_values = state.extras[batch_index]
-        if world.evaluate_logical_form(logical_form, target_values):
+        evaluation = False
+        try:
+            executor_logger = logging.getLogger('allennlp.semparse.executors.wikitables_variable_free_executor')
+            executor_logger.setLevel(logging.ERROR)
+            evaluation = world.evaluate_logical_form(logical_form, target_values)
+        except IndexError:
+            # TODO(pradeep): This happens due to a bug in "filter_in" and "filter_no_in" functions.
+            # The value evaluation, if it is a list, could be an empty one. Fix it there!
+            pass
+        if evaluation:
             cost = checklist_cost
         else:
             cost = checklist_cost + (1 - self._checklist_cost_weight) * denotation_cost

@@ -112,6 +112,7 @@ class LinkingCoverageTransitionFunction(CoverageTransitionFunction):
                 action_ids += embedded_actions
             else:
                 embedded_action_logits = None
+                output_action_embeddings = None
 
             if 'linked' in instance_actions:
                 linking_scores, type_embeddings, linked_actions = instance_actions['linked']
@@ -129,7 +130,10 @@ class LinkingCoverageTransitionFunction(CoverageTransitionFunction):
                 # The `output_action_embeddings` tensor gets used later as the input to the next
                 # decoder step.  For linked actions, we don't have any action embedding, so we use
                 # the entity type instead.
-                output_action_embeddings = torch.cat([output_action_embeddings, type_embeddings], dim=0)
+                if output_action_embeddings is None:
+                    output_action_embeddings = type_embeddings
+                else:
+                    output_action_embeddings = torch.cat([output_action_embeddings, type_embeddings], dim=0)
 
                 if self._mixture_feedforward is not None:
                     # The linked and global logits are combined with a mixture weight to prevent the

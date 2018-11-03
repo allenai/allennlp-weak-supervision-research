@@ -12,11 +12,12 @@ from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn import util
 
 
-@Model.register("latent_alignment")
-class LatentAlignment(Model):
+@Model.register("latent_alignment_shared_char")
+class LatentAlignmentSharedChar(Model):
     def __init__(self, vocab: Vocabulary,
                  utterance_embedder: TextFieldEmbedder,
                  logical_form_embedder: TextFieldEmbedder,
+                 char_embedder: TextFieldEmbedder,
                  utterance_encoder: Seq2SeqEncoder,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  regularizer: Optional[RegularizerApplicator] = None) -> None:
@@ -24,9 +25,10 @@ class LatentAlignment(Model):
 
         self.utterance_embedder = utterance_embedder
         self.logical_form_embedder = logical_form_embedder
+        self.char_embedder = char_embedder
         self.utterance_encoder = utterance_encoder
 
-        self.translation_layer = Linear(self.logical_form_embedder.get_output_dim(),
+        self.translation_layer = Linear(self.char_embedder.get_output_dim() +  self.logical_form_embedder.get_output_dim(),
                                         self.utterance_encoder.get_output_dim())
 
         self.mean_ranks = 0.0
@@ -53,7 +55,18 @@ class LatentAlignment(Model):
 
         """
         # (batch_size, num_utterance_tokens, utterance_embedding_dim)
-        embedded_utterance = self.utterance_embedder(utterance)
+        #import pdb; pdb.set_trace();
+        embedded_utterance_tokens = self.utterance_embedder({'tokens' : utterance['tokens'] } )
+        embedded_utterance_char_tokens = self.char_embedder({'token_characters' : utterance['token_characters'] })
+
+        embedded_logical_forms = self.logical_form_embedder({'lf_tokens': logical_forms['lf_tokens']}, num_wrapping_dims=1)
+        embedded_logical_forms_char_tokens = self.char_embedder({'token_characters': logical_forms['lf_token_characters']}, num_wrapping_dims=1)
+
+      
+        embedded_utterance = torch.cat([embedded_utterance_tokens, embedded_utterance_char_tokens], dim = -1)
+        embedded_logical_forms = torch.cat([embedded_logical_forms, embedded_logical_forms_char_tokens], dim = -1)
+
+
         utterance_mask = util.get_text_field_mask(utterance)
         encoded_utterance = self.utterance_encoder(embedded_utterance, utterance_mask)
         # Because we're just summing everything in the end, we can do the sum upfront to save some
@@ -64,7 +77,6 @@ class LatentAlignment(Model):
 
 
         # (batch_size, num_logical_forms, num_lf_tokens, lf_embedding_dim)
-        embedded_logical_forms = self.logical_form_embedder(logical_forms, num_wrapping_dims=1)
          
 
         # (batch_size, num_logical_forms, num_lf_tokens)
@@ -107,7 +119,7 @@ class LatentAlignment(Model):
         most_similar_strings = []
         for instance_most_similar, instance_logical_forms in zip(most_similar.tolist(), logical_form_strings):
             most_similar_strings.append(instance_logical_forms[instance_most_similar])
-        return {"loss": loss, "most_similar": most_similar_strings, "utterance": utterance_string, "all_similarities" : similarities}
+        return {"loss": loss, "most_similar": most_similar_strings, "utterance": utterance_string}
 
     @overrides
     def get_metrics(self, reset: bool = False):

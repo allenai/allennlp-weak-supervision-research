@@ -73,12 +73,6 @@ class LatentAlignmentSharedChar(Model):
         # time.
         # (batch_size, utterance_embedding_dim)
         encoded_utterance = encoded_utterance.sum(dim=1)
-
-
-
-        # (batch_size, num_logical_forms, num_lf_tokens, lf_embedding_dim)
-         
-
         # (batch_size, num_logical_forms, num_lf_tokens)
         logical_form_token_mask = util.get_text_field_mask(logical_forms, num_wrapping_dims=1)
         # (batch_size, num_logical_forms)

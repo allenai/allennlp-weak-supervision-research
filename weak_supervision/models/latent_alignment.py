@@ -77,7 +77,7 @@ class LatentAlignment(Model):
         similarities = torch.nn.functional.cosine_similarity(predicted_embeddings,
                                                              encoded_utterance.unsqueeze(1),
                                                              dim=2)
-        logical_form_lens = 1.0 + torch.sum(logical_form_token_mask, dim = -1, dtype = similarities.dtype) # to avoid division by zero, add a 1e-5
+        logical_form_lens = 1.0 + torch.sum(logical_form_token_mask, dim = -1, dtype = similarities.dtype) # to avoid division by zero, add a 1
         if self.normalize_by_len:
             similarities = similarities / logical_form_lens 
         # Make sure masked logical forms aren't included in the max.

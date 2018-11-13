@@ -77,7 +77,7 @@ class LatentAlignmentSharedChar(Model):
         encoded_utterance = encoded_utterance.sum(dim=1)
         # (batch_size, num_logical_forms, num_lf_tokens)
         logical_form_token_mask = util.get_text_field_mask(logical_forms, num_wrapping_dims=1)
-        logical_form_lens = 1e-5 + torch.sum(logical_form_token_mask, dim = -1) # to avoid division by zero, add a 1e-5
+        logical_form_lens = 1 + torch.sum(logical_form_token_mask, dim = -1) # to avoid division by zero, add 1 
         # (batch_size, num_logical_forms)
         logical_form_mask = logical_form_token_mask.sum(dim=-1).clamp(max=1)
 

@@ -19,6 +19,7 @@ class LatentAlignmentSharedChar(Model):
                  logical_form_embedder: TextFieldEmbedder,
                  char_embedder: TextFieldEmbedder,
                  utterance_encoder: Seq2SeqEncoder,
+                 normalize_by_len: bool = False,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  regularizer: Optional[RegularizerApplicator] = None) -> None:
         super().__init__(vocab, regularizer)
@@ -28,6 +29,7 @@ class LatentAlignmentSharedChar(Model):
         self.char_embedder = char_embedder
         self.utterance_encoder = utterance_encoder
 
+        self.normalize_by_len = normalize_by_len
         self.translation_layer = Linear(self.char_embedder.get_output_dim() +  self.logical_form_embedder.get_output_dim(),
                                         self.utterance_encoder.get_output_dim())
 
@@ -75,6 +77,7 @@ class LatentAlignmentSharedChar(Model):
         encoded_utterance = encoded_utterance.sum(dim=1)
         # (batch_size, num_logical_forms, num_lf_tokens)
         logical_form_token_mask = util.get_text_field_mask(logical_forms, num_wrapping_dims=1)
+        logical_form_lens = 1e-5 + torch.sum(logical_form_token_mask, dim = -1) # to avoid division by zero, add a 1e-5
         # (batch_size, num_logical_forms)
         logical_form_mask = logical_form_token_mask.sum(dim=-1).clamp(max=1)
 
@@ -91,7 +94,8 @@ class LatentAlignmentSharedChar(Model):
         similarities = torch.nn.functional.cosine_similarity(predicted_embeddings,
                                                              encoded_utterance.unsqueeze(1),
                                                              dim=2)
-
+        if self.normalize_by_len:
+            similarities = similarities / logical_form_lens.type(torch.cuda.FloatTensor)
         # Make sure masked logical forms aren't included in the max.
         similarities = util.replace_masked_values(similarities, logical_form_mask, -1e7)
 

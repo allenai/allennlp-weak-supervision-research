@@ -12,6 +12,7 @@
   "validation_data_path": "/u/murtyjay/allennlp_fork/LAM_lambda_dcs_all_lf/validation.json",
   "model": {
     "type": "latent_alignment",
+    "normalize_by_len" : true,
     "utterance_embedder": {
       "tokens": {
         "type": "embedding",

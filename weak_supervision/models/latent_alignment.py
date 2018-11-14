@@ -31,8 +31,8 @@ class LatentAlignment(Model):
         self.translation_layer = Linear(self.logical_form_embedder.get_output_dim(),
                                         self.utterance_encoder.get_output_dim())
 
-        self.mean_ranks = 0.0
-        self.accuracy = 0.0
+        self.mean_ranks = 0.0 
+        self.accuracy = 0.0 
         self.hits3 = 0.0
         self.hits5 = 0.0
         self.hits10 = 0.0

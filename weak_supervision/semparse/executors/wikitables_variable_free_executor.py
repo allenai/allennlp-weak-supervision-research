@@ -110,7 +110,8 @@ class WikiTablesVariableFreeExecutor:
         """
         if not row_list:
             return []
-        cell_row_pairs = [(row[column_name], row) for row in row_list]
+        cell_row_pairs = [(row[column_name], row) for row in row_list
+                          if row[column_name] is not None]
         return cell_row_pairs
 
     @staticmethod
@@ -123,7 +124,8 @@ class WikiTablesVariableFreeExecutor:
         """
         if not row_list:
             return []
-        cell_row_pairs = [(row[column_name], row) for row in row_list]
+        cell_row_pairs = [(row[column_name], row) for row in row_list
+                          if row[column_name] is not None]
         return cell_row_pairs
 
     def _get_row_index(self, row: Dict[str, str]) -> int:
@@ -155,19 +157,7 @@ class WikiTablesVariableFreeExecutor:
         column. If multiple rows are given, will return the first number that is not None.
         """
         row_list = self._handle_expression(row_expression_list)
-        assert column_name.startswith("number_column:")
-        numbers = [row[column_name] for row in row_list if row[column_name] is not None]
-        if numbers:
-            return numbers[0]
-        return -1
-
-    def select_num2(self, row_expression_list: NestedList, column_name: str) -> float:
-        """
-        Select function takes a row (as a list) and a column name and returns the num2 in that
-        column. If multiple rows are given, will return the first num2 that is not None.
-        """
-        row_list = self._handle_expression(row_expression_list)
-        assert column_name.startswith("num2_column:")
+        assert column_name.startswith("number_column:") or column_name.startswith("num2_column")
         numbers = [row[column_name] for row in row_list if row[column_name] is not None]
         if numbers:
             return numbers[0]
@@ -698,30 +688,6 @@ class WikiTablesVariableFreeExecutor:
                 most_frequent_list.append(cell_value)
         return most_frequent_list[0]
 
-    def mode_num2(self,
-                  row_expression_list: NestedList,
-                  column_name: str) -> float:
-        """
-        Takes an expression that evaluates to a list of rows, and a column and returns the most
-        frequent values (one or more) under that column in those rows.
-        """
-        row_list: RowListType = self._handle_expression(row_expression_list)
-        if not row_list:
-            return []
-        value_frequencies: Dict[str, int] = defaultdict(int)
-        max_frequency = 0
-        most_frequent_list: List[str] = []
-        for row in row_list:
-            cell_value = row[column_name]
-            value_frequencies[cell_value] += 1
-            frequency = value_frequencies[cell_value]
-            if frequency > max_frequency:
-                max_frequency = frequency
-                most_frequent_list = [cell_value]
-            elif frequency == max_frequency:
-                most_frequent_list.append(cell_value)
-        return most_frequent_list[0]
-
     def mode_date(self,
                   row_expression_list: NestedList,
                   column_name: str) -> Date:
@@ -792,6 +758,10 @@ class WikiTablesVariableFreeExecutor:
             return first_value - second_value
         except ValueError:
             raise ExecutionError(f"Invalid column for diff: {column_name}")
+        except TypeError:
+            # This means one of the values is None. It happens when one of the rows does not have a
+            # value in the corresponding column.
+            return 0.0
 
     @staticmethod
     def date(year_string: str, month_string: str, day_string: str) -> Date:

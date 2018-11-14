@@ -66,7 +66,7 @@ class TestWikiTablesVariableFreeWorld(AllenNlpTestCase):
                                 ['mode_date', 'select_date'])
 
         check_productions_match(valid_actions['<r,<f,n>>'],
-                                ['mode_number', 'select_number', 'mode_num2', 'select_num2',
+                                ['mode_number', 'select_number',
                                  'average', 'max', 'min', 'sum'])
 
         check_productions_match(valid_actions['<r,<f,<n,r>>>'],

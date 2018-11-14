@@ -128,6 +128,9 @@ class Date:
     def __str__(self):
         return f"{self.year}-{self.month}-{self.day}"
 
+    def __hash__(self):
+        return hash(str(self))
+
     @classmethod
     def make_date(cls, string: str) -> 'Date':
         year_string, month_string, day_string = string.split("-")

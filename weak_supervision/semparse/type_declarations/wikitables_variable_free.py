@@ -38,7 +38,7 @@ STARTING_TYPES = {NUMBER_TYPE, DATE_TYPE, STRING_TYPE}
 # Types for selecting the value in a column in a set of rows.
 # "select_string" and "mode_string" functions.
 SELECT_STRING_TYPE = ComplexType(ROW_TYPE, ComplexType(STRING_COLUMN_TYPE, STRING_TYPE))
-# "select_number", "mode_number", "select_num2", "mode_num2" functions.
+# "select_number", "mode_number" functions.
 SELECT_NUMBER_TYPE = ComplexType(ROW_TYPE, ComplexType(NUMBER_COLUMN_TYPE, NUMBER_TYPE))
 # "select_date" and "mode_date" functions.
 SELECT_DATE_TYPE = ComplexType(ROW_TYPE, ComplexType(DATE_COLUMN_TYPE, DATE_TYPE))
@@ -105,8 +105,6 @@ date_column_name_mapper.map_name_with_signature("mode_date", SELECT_DATE_TYPE)
 # <r,<f,n>>
 number_column_name_mapper.map_name_with_signature("select_number", SELECT_NUMBER_TYPE)
 number_column_name_mapper.map_name_with_signature("mode_number", SELECT_NUMBER_TYPE)
-number_column_name_mapper.map_name_with_signature("select_num2", SELECT_NUMBER_TYPE)
-number_column_name_mapper.map_name_with_signature("mode_num2", SELECT_NUMBER_TYPE)
 
 # <r,<c,r>>
 comparable_column_name_mapper.map_name_with_signature("argmax", ROW_FILTER_WITH_COMPARABLE_COLUMN)

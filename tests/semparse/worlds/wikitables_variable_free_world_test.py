@@ -202,8 +202,8 @@ class TestWikiTablesVariableFreeWorld(AllenNlpTestCase):
         assert self.world_with_usl_a_league.get_action_sequence(expression) == expected_sequence
 
     def test_world_gets_logical_form_from_actions(self):
-        logical_form = """(select_date (filter_in all_rows string_column:league string:usl_a_league)
-                            date_column:year)"""
+        # pylint: disable=line-too-long
+        logical_form = """(select_date (filter_in all_rows string_column:league string:usl_a_league) date_column:year)"""
         expression = self.world_with_usl_a_league.parse_logical_form(logical_form)
         action_sequence = self.world_with_usl_a_league.get_action_sequence(expression)
         reconstructed_logical_form = self.world_with_usl_a_league.get_logical_form(action_sequence)

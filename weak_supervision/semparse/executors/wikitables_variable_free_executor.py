@@ -508,7 +508,7 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         expression_evaluation = self._handle_expression(value_expression)
-        if isinstance(expression_evaluation, list):
+        if isinstance(expression_evaluation, list) and expression_evaluation:
             filter_value = expression_evaluation[0]
         elif isinstance(expression_evaluation, str):
             filter_value = expression_evaluation
@@ -538,7 +538,7 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         expression_evaluation = self._handle_expression(value_expression)
-        if isinstance(expression_evaluation, list):
+        if isinstance(expression_evaluation, list) and expression_evaluation:
             filter_value = expression_evaluation[0]
         elif isinstance(expression_evaluation, str):
             filter_value = expression_evaluation
@@ -738,6 +738,8 @@ class WikiTablesVariableFreeExecutor:
         most_frequent_list: List[str] = []
         for row in row_list:
             cell_value = row[column_name]
+            if cell_value is None:
+                continue
             value_frequencies[cell_value] += 1
             frequency = value_frequencies[cell_value]
             if frequency > max_frequency:
@@ -745,6 +747,8 @@ class WikiTablesVariableFreeExecutor:
                 most_frequent_list = [cell_value]
             elif frequency == max_frequency:
                 most_frequent_list.append(cell_value)
+        if not most_frequent_list:
+            return -1.0
         return most_frequent_list[0]
 
     def mode_date(self,
@@ -762,6 +766,8 @@ class WikiTablesVariableFreeExecutor:
         most_frequent_list: List[str] = []
         for row in row_list:
             cell_value = row[column_name]
+            if cell_value is None:
+                continue
             value_frequencies[cell_value] += 1
             frequency = value_frequencies[cell_value]
             if frequency > max_frequency:
@@ -769,6 +775,8 @@ class WikiTablesVariableFreeExecutor:
                 most_frequent_list = [cell_value]
             elif frequency == max_frequency:
                 most_frequent_list.append(cell_value)
+        if not most_frequent_list:
+            return Date(-1, -1, -1)
         return most_frequent_list[0]
 
     def same_as(self,

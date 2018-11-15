@@ -15,7 +15,7 @@ from allennlp.data.token_indexers import SingleIdTokenIndexer, TokenIndexer
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-def preprocess_tokens(token): 
+def preprocess_tokens(token):
     if token.startswith('fb:row.row.'):
         return token.replace('fb:row.row.', '')
     elif token.startswith('fb:cell.'):
@@ -33,12 +33,14 @@ class LatentAlignmentDatasetReader(DatasetReader):
                  utterance_token_indexers: Dict[str, TokenIndexer] = None,
                  logical_form_token_indexers: Dict[str, TokenIndexer] = None,
                  max_logical_forms: int = 500,
-                 process_tokens: bool = False, 
+                 process_tokens: bool = False,
                  lazy: bool = False) -> None:
         super().__init__(lazy)
         self._max_logical_forms = max_logical_forms
-        self._utterance_token_indexers = utterance_token_indexers or {'tokens': SingleIdTokenIndexer(namespace='tokens')}
-        self._logical_form_token_indexers = logical_form_token_indexers or {'lf_tokens': SingleIdTokenIndexer(namespace='lf_tokens')}
+        self._utterance_token_indexers = utterance_token_indexers or \
+                                         {'tokens': SingleIdTokenIndexer(namespace='tokens')}
+        self._logical_form_token_indexers = logical_form_token_indexers or \
+                                            {'lf_tokens': SingleIdTokenIndexer(namespace='lf_tokens')}
 
         self._process_tokens = process_tokens
         self._tokenizer = tokenizer or WordTokenizer(JustSpacesWordSplitter())
@@ -67,7 +69,8 @@ class LatentAlignmentDatasetReader(DatasetReader):
         logical_form_fields = []
         for logical_form in logical_forms:
             if self._process_tokens:
-                logical_form_tokens = [preprocess_tokens(token) for token in logical_form.replace('(', '').replace(')', '').split(' ')]
+                logical_form_tokens = [preprocess_tokens(token) for token in
+                                       logical_form.replace('(', '').replace(')', '').split(' ')]
             else:
                 logical_form_tokens = logical_form.replace('(', '').replace(')', '').split(' ')
             logical_form_fields.append(TextField([Token(t) for t in logical_form_tokens],

@@ -4,13 +4,11 @@ import os
 
 from allennlp.common import Params
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
-from allennlp.data.dataset_readers import LatentAlignmentDatasetReader
-from allennlp.data.dataset_readers import WikiTablesDatasetReader
 from allennlp.models.archival import load_archive
-from allennlp.data.dataset_readers.semantic_parsing.wikitables import util 
+from allennlp.data.dataset_readers.semantic_parsing.wikitables import util
 from tqdm import tqdm
 
-def rerank_lf(model_file, input_examples_file, params_file, tables_directory, lf_directory, output_directory):
+def rerank_lf(model_file, input_examples_file, params_file, lf_directory, output_directory):
     model = load_archive(model_file).model
     model.eval()
 
@@ -32,8 +30,9 @@ def rerank_lf(model_file, input_examples_file, params_file, tables_directory, lf
             question = parsed_info['question']
             instance = latent_alignment_reader.text_to_instance(question, sempre_forms)
             output = model.forward_on_instance(instance)
-            similarities = output['all_similarities'] 
-            top_lfs = [lf for lf, score in sorted(zip(sempre_forms, similarities), key = lambda x: x[1], reverse = True)[:10]]
+            similarities = output['all_similarities']
+            top_lfs = [lf for lf, score in sorted(zip(sempre_forms, similarities),
+                                                  key=lambda x: x[1], reverse=True)[:10]]
             if not os.path.exists(output_directory):
                 os.makedirs(output_directory)
             output_file = gzip.open(os.path.join(output_directory, f"{example_id}.gz"), "wb")
@@ -44,7 +43,6 @@ def rerank_lf(model_file, input_examples_file, params_file, tables_directory, lf
             found += 1.0
         except FileNotFoundError:
             continue
-            
     print(f"Found for {found/len(input_lines)} examples")
 
 
@@ -52,11 +50,10 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument("archived_model", type=str, help="Archived model.tar.gz")
     argparser.add_argument("input_examples_file", type=str, help="Input Examples file")
-    argparser.add_argument("table_dir", type=str, help="Table directory")
     argparser.add_argument("lf_dir", type=str, help="LF directory")
     argparser.add_argument("params_file", type=str, help="Parameters file")
     argparser.add_argument("--output-dir", type=str, dest="out_dir", help="Output directory",
                            default="latent_alignment")
 
     args = argparser.parse_args()
-    rerank_lf(args.archived_model, args.input_examples_file, args.params_file, args.table_dir, args.lf_dir, args.out_dir) 
+    rerank_lf(args.archived_model, args.input_examples_file, args.params_file, args.lf_dir, args.out_dir)

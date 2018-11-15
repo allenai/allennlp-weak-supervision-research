@@ -64,34 +64,33 @@ class LatentAlignmentDAM(Model):
         # (batch_size, num_logical_forms, num_lf_tokens, lf_embedding_dim)
         embedded_logical_forms = self.logical_form_embedder(logical_forms, num_wrapping_dims=1)
 
-        
         embedded_logical_forms = self.translation_layer(embedded_logical_forms)
 
         # (batch_size, num_logical_forms, num_lf_tokens, num_utterance_tokens)
-        scores = torch.nn.functional.cosine_similarity(encoded_utterance[:, None, None, :, :], 
-                                                       embedded_logical_forms[:, :, :, None, :], dim = -1)
-
-        # align every token in the LF to a token in the utterance, also taking 
+        scores = torch.nn.functional.cosine_similarity(encoded_utterance[:, None, None, :, :],
+                                                       embedded_logical_forms[:, :, :, None, :], dim=-1)
+        # align every token in the LF to a token in the utterance, also taking
         # care of masking i.e. padded tokens in LF shouldn't have any alignment scores
-        # (batch_size, num_logical_forms, num_lf_tokens) 
+        # (batch_size, num_logical_forms, num_lf_tokens)
         aligned_scores, _ = scores.max(dim=-1)
 
-        aligned_scores = util.replace_masked_values(aligned_scores, logical_form_token_mask, 0) 
-        
+        aligned_scores = util.replace_masked_values(aligned_scores, logical_form_token_mask, 0)
         # (batch_size, num_logical_forms) average for each logical form
         # add 1 to avoid overflow
-        lf_lens = 1.0 +  logical_form_token_mask.sum(dim = -1, dtype = embedded_logical_forms.dtype)
-        scores = aligned_scores.sum(dim = -1) / lf_lens
+        lf_lens = 1.0 +  logical_form_token_mask.sum(dim=-1, dtype=embedded_logical_forms.dtype)
+        scores = aligned_scores.sum(dim=-1) / lf_lens
 
         # Make sure masked logical forms aren't included in the max.
         logical_form_mask = logical_form_token_mask.sum(dim=-1).clamp(max=1)
         similarities = util.replace_masked_values(scores, logical_form_mask, -1e7)
 
-        ranks =  (similarities[:,0].unsqueeze(1) < similarities)
-        curr_ranks = ranks.sum(dim = -1) # (32,) ranks
-        hits = [ (curr_ranks < k).sum().cpu().data.numpy() for k in [3,5,10] ]
-        self.hits3 += hits[0]; self.hits5 += hits[1]; self.hits10 += hits[2]
-        self.mean_ranks += curr_ranks.sum(dim = 0).cpu().data.numpy()
+        ranks = (similarities[:, 0].unsqueeze(1) < similarities)
+        curr_ranks = ranks.sum(dim=-1) # (32,) ranks
+        hits = [(curr_ranks < k).sum().cpu().data.numpy() for k in [3, 5, 10]]
+        self.hits3 += hits[0]
+        self.hits5 += hits[1]
+        self.hits10 += hits[2]
+        self.mean_ranks += curr_ranks.sum(dim=0).cpu().data.numpy()
         self.batches += ranks.shape[0]
 
         max_similarity, most_similar = similarities.max(dim=-1)
@@ -102,18 +101,18 @@ class LatentAlignmentDAM(Model):
         most_similar_strings = []
         for instance_most_similar, instance_logical_forms in zip(most_similar.tolist(), logical_form_strings):
             most_similar_strings.append(instance_logical_forms[instance_most_similar])
-        return {"loss": loss, "most_similar": most_similar_strings, "utterance": utterance_string, "all_similarities" : similarities}
+        return {"loss": loss, "most_similar": most_similar_strings, "utterance": utterance_string,
+                "all_similarities" : similarities}
 
     @overrides
     def get_metrics(self, reset: bool = False):
-        if self.batches == 0: return {'mean_rank' : -1, 'accuracy' : -1, 'hits3' : -1, 'hits5' : -1, 'hits10' : -1}
+        if self.batches == 0:
+            return {'mean_rank' : -1, 'accuracy' : -1, 'hits3' : -1, 'hits5' : -1, 'hits10' : -1}
         mean_rank = self.mean_ranks / self.batches
         mean_accuracy = self.accuracy / self.batches
         mean_hits3 = self.hits3 / self.batches
         mean_hits5 = self.hits5 / self.batches
         mean_hits10 = self.hits10 / self.batches
-                   
-        
         if reset:
             self.mean_ranks = 0.0
             self.accuracy = 0.0
@@ -121,4 +120,5 @@ class LatentAlignmentDAM(Model):
             self.hits5 = 0.0
             self.hits10 = 0.0
             self.batches = 0.0
-        return {'mean_rank' : mean_rank, 'mean_accuracy' : mean_accuracy, 'hits3' : mean_hits3, 'hits5' : mean_hits5, 'hits10' : mean_hits10}
+        return {'mean_rank' : mean_rank, 'mean_accuracy' : mean_accuracy, 'hits3' : mean_hits3,
+                'hits5' : mean_hits5, 'hits10' : mean_hits10}

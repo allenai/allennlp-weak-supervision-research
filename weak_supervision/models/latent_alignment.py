@@ -31,8 +31,8 @@ class LatentAlignment(Model):
         self.translation_layer = Linear(self.logical_form_embedder.get_output_dim(),
                                         self.utterance_encoder.get_output_dim())
 
-        self.mean_ranks = 0.0 
-        self.accuracy = 0.0 
+        self.mean_ranks = 0.0
+        self.accuracy = 0.0
         self.hits3 = 0.0
         self.hits5 = 0.0
         self.hits10 = 0.0
@@ -77,23 +77,22 @@ class LatentAlignment(Model):
         similarities = torch.nn.functional.cosine_similarity(predicted_embeddings,
                                                              encoded_utterance.unsqueeze(1),
                                                              dim=2)
-        logical_form_lens = 1.0 + torch.sum(logical_form_token_mask, dim = -1, dtype = similarities.dtype) # to avoid division by zero, add a 1
+        # to avoid division by zero, add a 1
+        logical_form_lens = 1.0 + torch.sum(logical_form_token_mask, dim=-1, dtype=similarities.dtype)
         if self.normalize_by_len:
-            similarities = similarities / logical_form_lens 
-        # Make sure masked logical forms aren't included in the max.
+            similarities = similarities / logical_form_lens
+            # Make sure masked logical forms aren't included in the max.
         similarities = util.replace_masked_values(similarities, logical_form_mask, -1e7)
 
-
-        ranks =  (similarities[:,0].unsqueeze(1) < similarities)
-        curr_ranks = ranks.sum(dim = -1) # (32,) ranks
-        hits = [ (curr_ranks < k).sum().cpu().data.numpy() for k in [3,5,10] ]
-        self.hits3 += hits[0]; self.hits5 += hits[1]; self.hits10 += hits[2]
-        self.mean_ranks += curr_ranks.sum(dim = 0).cpu().data.numpy()
+        ranks = (similarities[:, 0].unsqueeze(1) < similarities)
+        curr_ranks = ranks.sum(dim=-1)  # (32,) ranks
+        hits = [(curr_ranks < k).sum().cpu().data.numpy() for k in [3, 5, 10]]
+        self.hits3 += hits[0]
+        self.hits5 += hits[1]
+        self.hits10 += hits[2]
+        self.mean_ranks += curr_ranks.sum(dim=0).cpu().data.numpy()
         self.batches += ranks.shape[0]
 
-
-        # replace max with logsumexp
-        #loss = -1.0*torch.logsumexp(similarities,dim=-1).sum()
         max_similarity, most_similar = similarities.max(dim=-1)
         loss = (1 - max_similarity).sum()
 
@@ -102,18 +101,19 @@ class LatentAlignment(Model):
         most_similar_strings = []
         for instance_most_similar, instance_logical_forms in zip(most_similar.tolist(), logical_form_strings):
             most_similar_strings.append(instance_logical_forms[instance_most_similar])
-        return {"loss": loss, "most_similar": most_similar_strings, "utterance": utterance_string, "all_similarities" : similarities}
+        return {"loss": loss, "most_similar": most_similar_strings, "utterance": utterance_string,
+                "all_similarities": similarities}
 
     @overrides
     def get_metrics(self, reset: bool = False):
-        if self.batches == 0: return {'mean_rank' : -1, 'accuracy' : -1, 'hits3' : -1, 'hits5' : -1, 'hits10' : -1}
+        if self.batches == 0:
+            return {'mean_rank': -1, 'accuracy': -1, 'hits3': -1, 'hits5': -1, 'hits10': -1}
         mean_rank = self.mean_ranks / self.batches
         mean_accuracy = self.accuracy / self.batches
         mean_hits3 = self.hits3 / self.batches
         mean_hits5 = self.hits5 / self.batches
         mean_hits10 = self.hits10 / self.batches
-                   
-        
+
         if reset:
             self.mean_ranks = 0.0
             self.accuracy = 0.0
@@ -121,4 +121,5 @@ class LatentAlignment(Model):
             self.hits5 = 0.0
             self.hits10 = 0.0
             self.batches = 0.0
-        return {'mean_rank' : mean_rank, 'mean_accuracy' : mean_accuracy, 'hits3' : mean_hits3, 'hits5' : mean_hits5, 'hits10' : mean_hits10}
+        return {'mean_rank': mean_rank, 'mean_accuracy': mean_accuracy, 'hits3': mean_hits3, 'hits5': mean_hits5,
+                'hits10': mean_hits10}

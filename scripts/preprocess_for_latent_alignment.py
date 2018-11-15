@@ -1,3 +1,6 @@
+#! /usr/bin/env python
+# pylint: disable=invalid-name,bare-except
+
 import gzip
 import argparse
 import json

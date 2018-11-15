@@ -1,3 +1,6 @@
+#! /usr/bin/env python
+# pylint: disable=invalid-name
+
 import argparse
 import gzip
 import os

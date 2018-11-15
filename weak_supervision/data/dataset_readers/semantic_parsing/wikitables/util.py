@@ -1,3 +1,6 @@
+#! /usr/bin/env python
+# pylint: disable=invalid-name,bare-except,unused-variable
+
 from typing import Dict
 
 GLOBAL_MAPPING = {"@index": ["fb:row.row.index"],

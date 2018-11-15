@@ -1,4 +1,6 @@
-# pylint: disable=no-self-use,invalid-name,too-many-public-methods
+# pylint: disable=no-self-use
+# pylint: disable=invalid-name
+# pylint: disable=too-many-public-methods
 from typing import List
 from functools import partial
 
@@ -175,7 +177,8 @@ class TestWikiTablesVariableFreeWorld(AllenNlpTestCase):
             return types_.comparable_column_name_mapper.get_alias(name)
 
     def test_world_processes_logical_forms_correctly(self):
-        logical_form = "(select_date (filter_in all_rows string_column:league string:usl_a_league) date_column:year)"
+        logical_form = """(select_date (filter_in all_rows string_column:league string:usl_a_league)
+                            date_column:year)"""
         expression = self.world_with_usl_a_league.parse_logical_form(logical_form)
         f = partial(self._get_alias, types)
         # Cells (and parts) get mapped to strings.
@@ -189,7 +192,8 @@ class TestWikiTablesVariableFreeWorld(AllenNlpTestCase):
         f"{f('select_date')}({f('filter_in')}({f('all_rows')},{league_alias},string:usl_a_league),{year_alias})"
 
     def test_world_gets_correct_actions(self):
-        logical_form = "(select_date (filter_in all_rows string_column:league string:usl_a_league) date_column:year)"
+        logical_form = """(select_date (filter_in all_rows string_column:league string:usl_a_league)
+                            date_column:year)"""
         expression = self.world_with_usl_a_league.parse_logical_form(logical_form)
         expected_sequence = ['@start@ -> d', 'd -> [<r,<m,d>>, r, m]', '<r,<m,d>> -> select_date',
                              'r -> [<r,<t,<s,r>>>, r, t, s]', '<r,<t,<s,r>>> -> filter_in',
@@ -198,7 +202,8 @@ class TestWikiTablesVariableFreeWorld(AllenNlpTestCase):
         assert self.world_with_usl_a_league.get_action_sequence(expression) == expected_sequence
 
     def test_world_gets_logical_form_from_actions(self):
-        logical_form = "(select_date (filter_in all_rows string_column:league string:usl_a_league) date_column:year)"
+        logical_form = """(select_date (filter_in all_rows string_column:league string:usl_a_league)
+                            date_column:year)"""
         expression = self.world_with_usl_a_league.parse_logical_form(logical_form)
         action_sequence = self.world_with_usl_a_league.get_action_sequence(expression)
         reconstructed_logical_form = self.world_with_usl_a_league.get_logical_form(action_sequence)

@@ -1,4 +1,5 @@
-# pylint: disable=no-self-use,invalid-name,protected-access,too-many-public-methods
+# pylint: disable=no-self-use
+# pylint: disable=invalid-name
 
 from allennlp.common.testing import AllenNlpTestCase
 from allennlp.data.tokenizers import WordTokenizer

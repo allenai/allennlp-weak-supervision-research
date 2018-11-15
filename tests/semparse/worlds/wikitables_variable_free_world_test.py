@@ -63,11 +63,13 @@ class TestWikiTablesVariableFreeWorld(AllenNlpTestCase):
                                 ['mode_string', 'select_string'])
 
         check_productions_match(valid_actions['<r,<m,d>>'],
-                                ['mode_date', 'select_date'])
+                                ['mode_date', 'select_date',
+                                 'max_date', 'min_date'])
 
         check_productions_match(valid_actions['<r,<f,n>>'],
                                 ['mode_number', 'select_number',
-                                 'average', 'max', 'min', 'sum'])
+                                 'average', 'max_number', 'min_number',
+                                 'sum'])
 
         check_productions_match(valid_actions['<r,<f,<n,r>>>'],
                                 ['filter_number_equals', 'filter_number_greater',
@@ -267,7 +269,7 @@ class TestWikiTablesVariableFreeWorld(AllenNlpTestCase):
                                            'f -> number_column:avg_attendance'}
         tokens = [Token(x) for x in ['what', 'is', 'the', 'least', 'avg.', 'attendance', '?']]
         world = self._get_world_with_question_tokens(tokens)
-        assert set(world.get_agenda()) == {'<r,<f,n>> -> min', 't -> string_column:avg_attendance',
+        assert set(world.get_agenda()) == {'<r,<f,n>> -> min_number', 't -> string_column:avg_attendance',
                                            'f -> number_column:avg_attendance'}
         tokens = [Token(x) for x in ['when', 'did', 'the', 'team', 'not', 'qualify', '?']]
         world = self._get_world_with_question_tokens(tokens)

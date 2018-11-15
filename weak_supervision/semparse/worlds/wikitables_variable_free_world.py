@@ -43,7 +43,6 @@ class WikiTablesVariableFreeWorld(World):
             types.SELECT_DATE_TYPE: 2,
             types.ROW_FILTER_WITH_GENERIC_COLUMN: 2,
             types.ROW_FILTER_WITH_COMPARABLE_COLUMN: 2,
-            types.ROW_NUM_OP: 2,
             types.ROW_FILTER_WITH_COLUMN_AND_NUMBER: 3,
             types.ROW_FILTER_WITH_COLUMN_AND_DATE: 3,
             types.ROW_FILTER_WITH_COLUMN_AND_STRING: 3,
@@ -233,14 +232,14 @@ class WikiTablesVariableFreeWorld(World):
                 # This condition is too brittle. But for most logical forms with "min", there are
                 # semantically equivalent ones with "argmin". The exceptions are rare.
                 if "what is the least" in question:
-                    agenda_items.append("min")
+                    agenda_items.append("min_number")
                 else:
                     agenda_items.append("argmin")
             if token in ["most", "largest", "highest", "longest", "greatest"] and "at most" not in question:
                 # This condition is too brittle. But for most logical forms with "max", there are
                 # semantically equivalent ones with "argmax". The exceptions are rare.
                 if "what is the most" in question:
-                    agenda_items.append("max")
+                    agenda_items.append("max_number")
                 else:
                     agenda_items.append("argmax")
             if token in ["first", "top"]:

@@ -38,9 +38,9 @@ STARTING_TYPES = {NUMBER_TYPE, DATE_TYPE, STRING_TYPE}
 # Types for selecting the value in a column in a set of rows.
 # "select_string" and "mode_string" functions.
 SELECT_STRING_TYPE = ComplexType(ROW_TYPE, ComplexType(STRING_COLUMN_TYPE, STRING_TYPE))
-# "select_number", "mode_number" functions.
+# "select_number", "mode_number", "max_number", "min_number", "sum", "average" functions.
 SELECT_NUMBER_TYPE = ComplexType(ROW_TYPE, ComplexType(NUMBER_COLUMN_TYPE, NUMBER_TYPE))
-# "select_date" and "mode_date" functions.
+# "select_date", "mode_date", "max_date", "min_date" functions.
 SELECT_DATE_TYPE = ComplexType(ROW_TYPE, ComplexType(DATE_COLUMN_TYPE, DATE_TYPE))
 
 # Type for filtering rows given a column. "argmax", "argmin" and "same_as" (select all rows with the
@@ -72,9 +72,6 @@ ROW_FILTER = ComplexType(ROW_TYPE, ROW_TYPE)  # first, last, previous, next etc.
 # This language lets you count only rows!
 COUNT_TYPE = ComplexType(ROW_TYPE, NUMBER_TYPE)
 
-# Numerical operations on numbers in the given column. "max", "min", "sum", "average" etc.
-ROW_NUM_OP = ComplexType(ROW_TYPE, ComplexType(NUMBER_COLUMN_TYPE, NUMBER_TYPE))
-
 # Numerical difference within the given column.
 NUM_DIFF_WITH_COLUMN = ComplexType(ROW_TYPE, ComplexType(ROW_TYPE, ComplexType(NUMBER_COLUMN_TYPE,
                                                                                NUMBER_TYPE)))
@@ -101,10 +98,16 @@ string_column_name_mapper.map_name_with_signature("mode_string", SELECT_STRING_T
 # <r,<m,d>>
 date_column_name_mapper.map_name_with_signature("select_date", SELECT_DATE_TYPE)
 date_column_name_mapper.map_name_with_signature("mode_date", SELECT_DATE_TYPE)
+date_column_name_mapper.map_name_with_signature("max_date", SELECT_DATE_TYPE)
+date_column_name_mapper.map_name_with_signature("min_date", SELECT_DATE_TYPE)
 
 # <r,<f,n>>
 number_column_name_mapper.map_name_with_signature("select_number", SELECT_NUMBER_TYPE)
 number_column_name_mapper.map_name_with_signature("mode_number", SELECT_NUMBER_TYPE)
+number_column_name_mapper.map_name_with_signature("max_number", SELECT_NUMBER_TYPE)
+number_column_name_mapper.map_name_with_signature("min_number", SELECT_NUMBER_TYPE)
+number_column_name_mapper.map_name_with_signature("average", SELECT_NUMBER_TYPE)
+number_column_name_mapper.map_name_with_signature("sum", SELECT_NUMBER_TYPE)
 
 # <r,<c,r>>
 comparable_column_name_mapper.map_name_with_signature("argmax", ROW_FILTER_WITH_COMPARABLE_COLUMN)
@@ -142,12 +145,6 @@ generic_name_mapper.map_name_with_signature("next", ROW_FILTER)
 
 # <r,n>
 generic_name_mapper.map_name_with_signature("count", COUNT_TYPE)
-
-# <r,<f,n>>
-number_column_name_mapper.map_name_with_signature("max", ROW_NUM_OP)
-number_column_name_mapper.map_name_with_signature("min", ROW_NUM_OP)
-number_column_name_mapper.map_name_with_signature("average", ROW_NUM_OP)
-number_column_name_mapper.map_name_with_signature("sum", ROW_NUM_OP)
 
 # <r,<r,<f,n>>>
 number_column_name_mapper.map_name_with_signature("diff", NUM_DIFF_WITH_COLUMN)

@@ -57,7 +57,7 @@ class TestWikiTablesVariableFreeExecutor(AllenNlpTestCase):
         # Selecting cell values from all rows that have attendance greater than the min value of
         # attendance.
         logical_form = """(select_string (filter_number_greater all_rows number_column:avg_attendance
-                                   (min all_rows number_column:avg_attendance)) string_column:league)"""
+                                   (min_number all_rows number_column:avg_attendance)) string_column:league)"""
         cell_value_list = self.executor.execute(logical_form)
         assert cell_value_list == ['usl_a_league']
         # Replacing the filter value with an invalid value.
@@ -81,7 +81,7 @@ class TestWikiTablesVariableFreeExecutor(AllenNlpTestCase):
     def test_execute_works_with_filter_number_greater_equals(self):
         # Counting rows that have attendance greater than or equal to the min value of attendance.
         logical_form = """(count (filter_number_greater_equals all_rows number_column:avg_attendance
-                                  (min all_rows number_column:avg_attendance)))"""
+                                  (min_number all_rows number_column:avg_attendance)))"""
         count_result = self.executor.execute(logical_form)
         assert count_result == 2
         # Replacing the filter value with an invalid value.
@@ -105,7 +105,7 @@ class TestWikiTablesVariableFreeExecutor(AllenNlpTestCase):
     def test_execute_works_with_filter_number_lesser(self):
         # Selecting cell values from all rows that have date lesser than 2005.
         logical_form = """(select_string (filter_number_lesser all_rows number_column:avg_attendance
-                                    (max all_rows number_column:avg_attendance)) string_column:league)"""
+                                    (max_number all_rows number_column:avg_attendance)) string_column:league)"""
         cell_value_list = self.executor.execute(logical_form)
         assert cell_value_list == ['usl_first_division']
         # Replacing the filter value with an invalid value.
@@ -335,11 +335,6 @@ class TestWikiTablesVariableFreeExecutor(AllenNlpTestCase):
         logical_form = """(diff (filter_in all_rows string_column:league string:usl_a_league)
                                 (filter_in all_rows string_column:league string:usl_first_division)
                                 string_column:league)"""
-        with self.assertRaises(ExecutionError):
-            self.executor.execute(logical_form)
-
-    def test_execute_fails_with_non_int_dates(self):
-        logical_form = """(date 2015 1.5 1)"""
         with self.assertRaises(ExecutionError):
             self.executor.execute(logical_form)
 

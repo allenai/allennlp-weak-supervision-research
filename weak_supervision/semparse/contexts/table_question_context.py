@@ -126,6 +126,10 @@ class Date:
         return self > other or self == other
 
     def __str__(self):
+        if (self.month, self.day) == (-1, -1):
+            # If we have only the year, return just that so that the official evaluator does the
+            # comparison against the target as if both are numbers.
+            return str(self.year)
         return f"{self.year}-{self.month}-{self.day}"
 
     def __hash__(self):
@@ -173,7 +177,7 @@ class TableQuestionContext:
         string_column_mapping: Dict[str, List[str]] = defaultdict(list)
         for table_row in table_data:
             for column_name, cell_value in table_row.items():
-                if "string_column:" in column_name:
+                if "string_column:" in column_name and cell_value is not None:
                     string_column_mapping[cell_value].append(column_name)
         # We want the object to raise KeyError when checking if a specific string is a cell in the
         # table.

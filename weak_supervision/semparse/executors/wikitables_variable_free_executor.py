@@ -1,5 +1,6 @@
 from typing import List, Dict, Tuple, Union, Any
 from collections import defaultdict
+import re
 import logging
 
 from allennlp.semparse import util as semparse_util
@@ -7,7 +8,8 @@ from allennlp.semparse.worlds.world import ExecutionError
 from allennlp.tools import wikitables_evaluator as evaluator
 
 from weak_supervision.semparse.contexts import TableQuestionContext
-from weak_supervision.semparse.contexts.table_question_context import Date, CellValueType
+from weak_supervision.semparse.contexts.table_question_context import (Date, CellValueType,
+                                                                       MONTH_NUMBERS)
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -34,6 +36,22 @@ class WikiTablesVariableFreeExecutor:
         if not isinstance(other, WikiTablesVariableFreeExecutor):
             return False
         return self.table_data == other.table_data
+
+    @staticmethod
+    def _make_date(string: str) -> Date:
+        parts = re.split('[ -_]', string)
+        year = -1
+        month = -1
+        day = -1
+        for part in parts:
+            if part.isdigit():
+                if len(part) == 4:
+                    year = int(part)
+                else:
+                    day = int(part)
+            if part in MONTH_NUMBERS:
+                month = int(MONTH_NUMBERS[part])
+        return Date(year, month, day)
 
     def execute(self, logical_form: str) -> Any:
         if not logical_form.startswith("("):
@@ -66,6 +84,8 @@ class WikiTablesVariableFreeExecutor:
         if isinstance(denotation, list):
             denotation_list = [str(denotation_item) for denotation_item in denotation]
         else:
+            if isinstance(denotation, Date):
+                target_list = [str(self._make_date(target)) for target in target_list]
             denotation_list = [str(denotation)]
         denotation_value_list = evaluator.to_value_list(denotation_list)
         return evaluator.check_denotation(target_value_list, denotation_value_list)
@@ -101,31 +121,41 @@ class WikiTablesVariableFreeExecutor:
 
     @staticmethod
     def _get_number_row_pairs_to_filter(row_list: RowListType,
-                                        column_name: str) -> List[Tuple[float, Dict[str,
-                                                                                    CellValueType]]]:
+                                        column_name: str,
+                                        keep_none_values: bool = False) -> List[Tuple[float,
+                                                                                      Dict[str, CellValueType]]]:
         """
         Helper method that takes a row list and a column name, and returns a list of tuples, each
         containing as the first element a number taken from that column, and the corresponding row
-        as the second element. The output can be used to compare rows based on the numbers.
+        as the second element. The output can be used to compare rows based on the numbers. Some of
+        the values are None since not all rows contain values under a given column. In such cases,
+        if you want to keep the values (say if you are using these in a negated condition like
+        filter_*not_*), then set `keep_none_values` to True.
         """
         if not row_list:
             return []
         cell_row_pairs = [(row[column_name], row) for row in row_list
-                          if row[column_name] is not None]
+                          if row[column_name] is not None or keep_none_values]
         return cell_row_pairs
 
     @staticmethod
     def _get_date_row_pairs_to_filter(row_list: RowListType,
-                                      column_name: str) -> List[Tuple[Date, Dict[str, CellValueType]]]:
+                                      column_name: str,
+                                      keep_none_values: bool = False) -> List[Tuple[Date,
+                                                                                    Dict[str, CellValueType]]]:
         """
         Helper method that takes a row list and a column name, and returns a list of tuples, each
         containing as the first element a date taken from that column, and the corresponding row as
-        the second element. The output can be used to compare rows based on the dates.
+        the second element. The output can be used to compare rows based on the dates. Some of
+        the values are None since not all rows contain values under a given column. In such cases,
+        if you want to keep the values (say if you are using these in a negated condition like
+        filter_*not_*), then set `keep_none_values` to True.
+
         """
         if not row_list:
             return []
         cell_row_pairs = [(row[column_name], row) for row in row_list
-                          if row[column_name] is not None]
+                          if row[column_name] is not None or keep_none_values]
         return cell_row_pairs
 
     def _get_row_index(self, row: Dict[str, str]) -> int:
@@ -327,7 +357,7 @@ class WikiTablesVariableFreeExecutor:
         row_list = self._handle_expression(row_expression_list)
         if not row_list:
             return []
-        cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
+        cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name, True)
         filter_value = self._handle_expression(value_expression)
         if not isinstance(filter_value, float):
             raise ExecutionError(f"Invalid filter value: {value_expression}")
@@ -456,7 +486,7 @@ class WikiTablesVariableFreeExecutor:
         row_list = self._handle_expression(row_expression_list)
         if not row_list:
             return []
-        cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name)
+        cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name, True)
         filter_value = self._handle_expression(value_expression)
         if not isinstance(filter_value, Date):
             raise ExecutionError(f"Invalid filter value: {value_expression}")
@@ -490,6 +520,8 @@ class WikiTablesVariableFreeExecutor:
         # for spaces, so we do not need to replace them here.
         result_list = []
         for row in row_list:
+            if row[column_name] is None:
+                continue
             if filter_value in row[column_name]:
                 result_list.append(row)
         return result_list
@@ -518,7 +550,8 @@ class WikiTablesVariableFreeExecutor:
         # for spaces, so we do not need to replace them here.
         result_list = []
         for row in row_list:
-            if filter_value not in row[column_name]:
+            cell_value = row[column_name]
+            if cell_value is None or filter_value not in cell_value:
                 result_list.append(row)
         return result_list
 
@@ -588,9 +621,9 @@ class WikiTablesVariableFreeExecutor:
         row_list: RowListType = self._handle_expression(row_expression_list)
         return float(len(row_list))
 
-    def max(self,
-            row_expression_list: NestedList,
-            column_name: str) -> float:
+    def max_number(self,
+                   row_expression_list: NestedList,
+                   column_name: str) -> float:
         """
         Takes an expression list that evaluates to a  list of rows and a column name, and returns the max
         of the values under that column in those rows.
@@ -601,9 +634,9 @@ class WikiTablesVariableFreeExecutor:
             return 0.0
         return max([value for value, _ in cell_row_pairs])
 
-    def min(self,
-            row_expression_list: NestedList,
-            column_name: str) -> float:
+    def min_number(self,
+                   row_expression_list: NestedList,
+                   column_name: str) -> float:
         """
         Takes an expression list that evaluates to a  list of rows and a column, and returns the min
         of the values under that column in those rows.
@@ -612,6 +645,32 @@ class WikiTablesVariableFreeExecutor:
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
         if not cell_row_pairs:
             return 0.0
+        return min([value for value, _ in cell_row_pairs])
+
+    def max_date(self,
+                 row_expression_list: NestedList,
+                 column_name: str) -> Date:
+        """
+        Takes an expression list that evaluates to a  list of rows and a column name, and returns the max
+        of the values under that column in those rows.
+        """
+        row_list: RowListType = self._handle_expression(row_expression_list)
+        cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name)
+        if not cell_row_pairs:
+            return Date(-1, -1, -1)
+        return max([value for value, _ in cell_row_pairs])
+
+    def min_date(self,
+                 row_expression_list: NestedList,
+                 column_name: str) -> Date:
+        """
+        Takes an expression list that evaluates to a  list of rows and a column, and returns the min
+        of the values under that column in those rows.
+        """
+        row_list: RowListType = self._handle_expression(row_expression_list)
+        cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name)
+        if not cell_row_pairs:
+            return Date(-1, -1, -1)
         return min([value for value, _ in cell_row_pairs])
 
     def sum(self,

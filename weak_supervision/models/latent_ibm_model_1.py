@@ -39,7 +39,7 @@ class LatentIbmModel1(Model):
                 logical_forms: Dict[str, torch.LongTensor],
                 utterance_string: List[str],
                 logical_form_strings: List[List[str]]) -> Dict[str, torch.Tensor]:
-        # pylint: disable=arguments-differ
+        # pylint: disable=arguments-differ,protected-access
 
         # For more complicated embeddings (char-CNN, etc.), we just need to create range vectors of
         # length vocab_size and apply the utterance embedder and LF embedder to them.
@@ -153,7 +153,7 @@ class LatentIbmModel1(Model):
         # Here we'll compute a distribution given those counts and take a gradient step in that
         # direction.
 
-        loss = torch.tensor(0.0).to(aligned_probs.device)
+        loss = torch.tensor(0.0).to(aligned_probs.device)  # pylint: disable=not-callable
         for lf_token, total_count in lf_token_counts.items():
             desired_token_probs = torch.zeros((token_vocab_size,)).to(aligned_probs.device)
             for utterance_token, count in lf_translation_counts[lf_token].items():
@@ -162,11 +162,13 @@ class LatentIbmModel1(Model):
                                                desired_token_probs)
 
 
-        ranks =  (prob_utterance_given_lf[:,0].unsqueeze(1) < prob_utterance_given_lf)
-        curr_ranks = ranks.sum(dim = -1) # (32,) ranks
-        hits = [ (curr_ranks < k).sum().cpu().data.numpy() for k in [3,5,10] ]
-        self.hits3 += hits[0]; self.hits5 += hits[1]; self.hits10 += hits[2]
-        self.mean_ranks += curr_ranks.sum(dim = 0).cpu().data.numpy()
+        ranks = (prob_utterance_given_lf[:, 0].unsqueeze(1) < prob_utterance_given_lf)
+        curr_ranks = ranks.sum(dim=-1) # (32,) ranks
+        hits = [(curr_ranks < k).sum().cpu().data.numpy() for k in [3, 5, 10]]
+        self.hits3 += hits[0]
+        self.hits5 += hits[1]
+        self.hits10 += hits[2]
+        self.mean_ranks += curr_ranks.sum(dim=0).cpu().data.numpy()
         self.batches += ranks.shape[0]
 
         self.accuracy += (best_lf_indices == 0).sum().cpu().data.numpy()
@@ -174,11 +176,17 @@ class LatentIbmModel1(Model):
         most_similar_strings = []
         for instance_most_similar, instance_logical_forms in zip(best_lf_indices.tolist(), logical_form_strings):
             most_similar_strings.append(instance_logical_forms[instance_most_similar])
-        return {"loss": loss, "most_similar": most_similar_strings, "utterance": utterance_string, "all_similarities": prob_utterance_given_lf}
+        return {
+                "loss": loss,
+                "most_similar": most_similar_strings,
+                "utterance": utterance_string,
+                "all_similarities": prob_utterance_given_lf
+                }
 
     @overrides
     def get_metrics(self, reset: bool = False):
-        if self.batches == 0: return {'mean_rank' : -1, 'accuracy' : -1, 'hits3' : -1, 'hits5' : -1, 'hits10' : -1}
+        if self.batches == 0:
+            return {'mean_rank' : -1, 'accuracy' : -1, 'hits3' : -1, 'hits5' : -1, 'hits10' : -1}
         mean_rank = self.mean_ranks / self.batches
         mean_accuracy = self.accuracy / self.batches
         mean_hits3 = self.hits3 / self.batches
@@ -193,4 +201,10 @@ class LatentIbmModel1(Model):
             self.hits5 = 0.0
             self.hits10 = 0.0
             self.batches = 0.0
-        return {'mean_rank' : mean_rank, 'mean_accuracy' : mean_accuracy, 'hits3' : mean_hits3, 'hits5' : mean_hits5, 'hits10' : mean_hits10}
+        return {
+                'mean_rank' : mean_rank,
+                'mean_accuracy' : mean_accuracy,
+                'hits3' : mean_hits3,
+                'hits5' : mean_hits5,
+                'hits10' : mean_hits10
+                }

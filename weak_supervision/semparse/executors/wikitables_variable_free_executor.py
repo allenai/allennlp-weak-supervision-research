@@ -2,6 +2,7 @@ from typing import List, Dict, Tuple, Union, Any
 from collections import defaultdict
 import re
 import logging
+from unidecode import unidecode
 
 from allennlp.semparse import util as semparse_util
 from allennlp.semparse.worlds.world import ExecutionError
@@ -45,10 +46,12 @@ class WikiTablesVariableFreeExecutor:
         day = -1
         for part in parts:
             if part.isdigit():
+                # isdigit returns True for unicode numbers as well!
+                part_int = int(unidecode(part))
                 if len(part) == 4:
-                    year = int(part)
+                    year = part_int
                 else:
-                    day = int(part)
+                    day = part_int
             if part in MONTH_NUMBERS:
                 month = int(MONTH_NUMBERS[part])
         return Date(year, month, day)

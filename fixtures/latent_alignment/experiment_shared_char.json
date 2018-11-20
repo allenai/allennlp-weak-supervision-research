@@ -58,7 +58,7 @@
 
     "utterance_encoder": {
       "type": "pass_through",
-      "input_dim": 100
+      "input_dim": 150
     }
   },
   "iterator": {

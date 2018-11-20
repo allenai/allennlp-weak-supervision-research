@@ -28,29 +28,19 @@
     "logical_form_embedder": {
       "lf_tokens": {
         "type": "embedding",
-        "embedding_dim": 50,
+        "embedding_dim": 100,
         "trainable": true
-      },
-      "lf_token_characters": {
-        "type": "character_encoding",
-        "embedding": {
-         "num_embeddings": 262,
-         "embedding_dim": 16
-        },
-        "encoder": {
-         "type": "cnn",
-         "embedding_dim": 16,
-         "num_filters": 50,
-         "ngram_filter_sizes": [3]
-        }
       }
     },
     "utterance_embedder": {
       "tokens": {
         "type": "embedding",
-        "embedding_dim": 50,
+        "embedding_dim": 100,
         "trainable": true
-      },
+      }
+    },
+
+    "char_embedder": {
       "token_characters": {
         "type": "character_encoding",
         "embedding": {
@@ -65,6 +55,7 @@
         }
       }
     },
+
     "utterance_encoder": {
       "type": "pass_through",
       "input_dim": 100

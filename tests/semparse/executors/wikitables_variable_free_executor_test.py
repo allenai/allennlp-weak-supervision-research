@@ -33,6 +33,15 @@ class TestWikiTablesVariableFreeExecutor(AllenNlpTestCase):
         cell_list = self.executor.execute(logical_form)
         assert set(cell_list) == {'usl_a_league', 'usl_first_division'}
 
+    def test_execute_works_with_select_number(self):
+        logical_form = "(select_number all_rows number_column:division)"
+        selected_number = self.executor.execute(logical_form)
+        assert selected_number == 2.0
+        logical_form = "(select_number all_rows num2_column:division)"
+        selected_number = self.executor.execute(logical_form)
+        # Returns the first number.
+        assert selected_number == 5.0
+
     def test_execute_works_with_argmax(self):
         logical_form = "(select_string (argmax all_rows number_column:avg_attendance) string_column:league)"
         cell_list = self.executor.execute(logical_form)
@@ -285,11 +294,32 @@ class TestWikiTablesVariableFreeExecutor(AllenNlpTestCase):
                           "Trying to get the next row from an empty list: "
                           "['filter_date_greater', 'all_rows', 'date_column:date', ['date', '2010', '-1', '-1']]"])
 
-    def test_execute_works_with_mode(self):
+    def test_execute_works_with_max_date(self):
+        logical_form = """(max_date all_rows date_column:date)"""
+        cell_list = self.executor.execute(logical_form)
+        assert str(cell_list) == "2005-3--1"
+
+    def test_execute_works_with_min_date(self):
+        logical_form = """(min_date all_rows date_column:date)"""
+        cell_list = self.executor.execute(logical_form)
+        assert str(cell_list) == "2001-1--1"
+
+    def test_execute_works_with_mode_number(self):
         # Most frequent division value.
         logical_form = """(mode_number all_rows number_column:division)"""
         cell_list = self.executor.execute(logical_form)
         assert cell_list == 2.0
+
+    def test_execute_works_with_mode_string(self):
+        logical_form = """(mode_string all_rows string_column:league)"""
+        cell_list = self.executor.execute(logical_form)
+        # Returns the string values with frequency 1 (which is the max frequency)
+        assert cell_list == ["usl_a_league", "usl_first_division"]
+
+    def test_execute_works_with_mode_date(self):
+        logical_form = """(mode_date all_rows date_column:date)"""
+        cell_list = self.executor.execute(logical_form)
+        assert str(cell_list) == "2001-1--1"
 
     def test_execute_works_with_same_as(self):
         # Select the "league" from all the rows that have the same value under "playoffs" as the

@@ -32,6 +32,7 @@ class LatentAlignmentDatasetReader(DatasetReader):
                  tokenizer: Tokenizer = None,
                  utterance_token_indexers: Dict[str, TokenIndexer] = None,
                  logical_form_token_indexers: Dict[str, TokenIndexer] = None,
+
                  max_logical_forms: int = 500,
                  process_tokens: bool = False,
                  lazy: bool = False) -> None:

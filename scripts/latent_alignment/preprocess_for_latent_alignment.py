@@ -21,6 +21,7 @@ def process_file(file_path: str, out_path: str, lf_path: str, is_labeled=False):
             if is_labeled:
                 try:
                     parsed_info = util.parse_example_line_with_labels(line)
+                    sempre_form_gold = parsed_info['target_lf']
                 except:
                     continue
             else:

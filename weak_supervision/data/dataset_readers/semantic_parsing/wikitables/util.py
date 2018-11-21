@@ -58,6 +58,8 @@ def translate_to_lambda_dcs(formula: str):
                     translated_parts += [canonical_name]
         else:
             translated_parts += [part]
+    translated_parts = " ".join(translated_parts)
+    translated_parts = translated_parts.replace("( ", "(").replace(" )", ")")
     return translated_parts
 
 
@@ -84,6 +86,7 @@ def parse_example_line_with_labels(lisp_string: str) -> Dict:
         string = string.replace(")", "").replace('"', '').strip()
         if string != "":
             target_values.append(string)
+
     return {'id': example_id,
             'question': question,
             'table_filename': table_filename,

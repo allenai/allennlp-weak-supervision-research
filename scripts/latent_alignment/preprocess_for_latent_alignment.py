@@ -23,8 +23,6 @@ def process_file(file_path: str, out_path: str, lf_path: str, is_labeled=False):
                     parsed_info = util.parse_example_line_with_labels(line)
                 except:
                     continue
-                sempre_form_gold = " ".join(parsed_info["target_lf"])
-                sempre_form_gold = sempre_form_gold.replace("( ", "(").replace(" )", ")")
             else:
                 parsed_info = util.parse_example_line(line)
             question = parsed_info["question"]

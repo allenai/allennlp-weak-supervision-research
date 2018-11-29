@@ -16,7 +16,6 @@ from allennlp.data.instance import Instance
 from allennlp.data.fields import (Field, TextField, MetadataField, ProductionRuleField,
                                   ListField, IndexField, KnowledgeGraphField)
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
-from allennlp.data.dataset_readers.semantic_parsing.wikitables import util as wikitables_util
 from allennlp.data.tokenizers import WordTokenizer
 from allennlp.data.tokenizers.tokenizer import Tokenizer
 from allennlp.data.tokenizers.word_splitter import SpacyWordSplitter
@@ -24,6 +23,7 @@ from allennlp.data.token_indexers import SingleIdTokenIndexer
 from allennlp.data.token_indexers.token_indexer import TokenIndexer
 from allennlp.semparse.worlds.world import ParsingError
 
+from weak_supervision.data.dataset_readers.semantic_parsing.wikitables import util as wikitables_util
 from weak_supervision.semparse.contexts import TableQuestionContext
 from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
 

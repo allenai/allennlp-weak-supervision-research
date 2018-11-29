@@ -40,7 +40,7 @@ class WikiTablesVariableFreeExecutor:
 
     @staticmethod
     def _make_date(string: str) -> Date:
-        parts = re.split('[ -_]', string)
+        parts = re.split('[-_]', string)
         year = -1
         month = -1
         day = -1
@@ -76,20 +76,27 @@ class WikiTablesVariableFreeExecutor:
         Takes a logical form, and the list of target values as strings from the original lisp
         string, and returns True iff the logical form executes to the target list.
         """
-        normalized_target_list = [TableQuestionContext.normalize_string(value) for value in
-                                  target_list]
-        target_value_list = evaluator.to_value_list(normalized_target_list)
+        # Normalize target value only if it is not a number.
+        normalized_target_list = []
+        for value in target_list:
+            try:
+                float(value)
+                normalized_target_list.append(value)
+            except ValueError:
+                normalized_target_list.append(TableQuestionContext.normalize_string(value))
         try:
             denotation = self.execute(logical_form)
         except ExecutionError:
             logger.warning(f'Failed to execute: {logical_form}')
             return False
-        if isinstance(denotation, list):
-            denotation_list = [str(denotation_item) for denotation_item in denotation]
-        else:
-            if isinstance(denotation, Date):
-                target_list = [str(self._make_date(target)) for target in target_list]
-            denotation_list = [str(denotation)]
+        if not isinstance(denotation, list):
+            logger.warning(f"Logical form is not a list: {logical_form}")
+            return False
+        if denotation and isinstance(denotation[0], Date):
+            normalized_target_list = [str(self._make_date(target)) for target in normalized_target_list]
+        denotation_list = []
+        denotation_list = [str(denotation_item) for denotation_item in denotation]
+        target_value_list = evaluator.to_value_list(normalized_target_list)
         denotation_value_list = evaluator.to_value_list(denotation_list)
         return evaluator.check_denotation(target_value_list, denotation_value_list)
 
@@ -182,30 +189,24 @@ class WikiTablesVariableFreeExecutor:
         """
         row_list = self._handle_expression(row_expression_list)
         assert column_name.startswith("string_column:")
-        return [row[column_name] for row in row_list if row[column_name] is not None]
+        return [row[column_name] for row in row_list if row[column_name]]
 
-    def select_number(self, row_expression_list: NestedList, column_name: str) -> float:
+    def select_number(self, row_expression_list: NestedList, column_name: str) -> List[float]:
         """
-        Select function takes a row (as a list) and a column name and returns the number in that
-        column. If multiple rows are given, will return the first number that is not None.
+        Select function takes a row (as a list) and a column name and returns the numbers in that
+        column.
         """
         row_list = self._handle_expression(row_expression_list)
         assert column_name.startswith("number_column:") or column_name.startswith("num2_column")
-        numbers = [row[column_name] for row in row_list if row[column_name] is not None]
-        if numbers:
-            return numbers[0]
-        return -1
+        return [row[column_name] for row in row_list if row[column_name] is not None]
 
-    def select_date(self, row_expression_list: NestedList, column_name: str) -> Date:
+    def select_date(self, row_expression_list: NestedList, column_name: str) -> List[Date]:
         """
-        Select function takes a row as a list and a column name and returns the date in that column.
+        Select function takes a row as a list and a column name and returns the dates in that column.
         """
         row_list = self._handle_expression(row_expression_list)
         assert column_name.startswith("date_column:")
-        dates = [row[column_name] for row in row_list if row[column_name] is not None]
-        if dates:
-            return dates[0]
-        return Date(-1, -1, -1)
+        return [row[column_name] for row in row_list if row[column_name] is not None]
 
     def argmax(self, row_expression_list: NestedList, column_name: str) -> RowListType:
         """
@@ -223,7 +224,8 @@ class WikiTablesVariableFreeExecutor:
         if not value_row_pairs:
             return []
         # Returns a list containing the row with the max cell value.
-        return [sorted(value_row_pairs, key=lambda x: x[0], reverse=True)[0][1]]
+        max_cell_value = sorted(value_row_pairs, key=lambda x: x[0], reverse=True)[0][0]
+        return [row for value, row in value_row_pairs if value == max_cell_value]
 
     def argmin(self, row_expression_list: NestedList, column_name: str) -> RowListType:
         """
@@ -241,7 +243,8 @@ class WikiTablesVariableFreeExecutor:
         if not value_row_pairs:
             return []
         # Returns a list containing the row with the max cell value.
-        return [sorted(value_row_pairs, key=lambda x: x[0])[0][1]]
+        min_cell_value = sorted(value_row_pairs, key=lambda x: x[0])[0][0]
+        return [row for value, row in value_row_pairs if value == min_cell_value]
 
     def filter_number_greater(self,
                               row_expression_list: NestedList,
@@ -255,12 +258,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, float):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value > filter_value:
+            if all([cell_value > value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -277,12 +285,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, float):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value >= filter_value:
+            if all([cell_value >= value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -298,12 +311,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, float):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value < filter_value:
+            if all([cell_value < value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -319,12 +337,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, float):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value <= filter_value:
+            if all([cell_value <= value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -340,12 +363,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, float):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value == filter_value:
+            if all([cell_value == value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -361,12 +389,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name, True)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, float):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, float):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value != filter_value:
+            if all([cell_value != value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -384,12 +417,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, Date):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value > filter_value:
+            if all([cell_value > value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -406,12 +444,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, Date):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value >= filter_value:
+            if all([cell_value >= value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -427,12 +470,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, Date):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value < filter_value:
+            if all([cell_value < value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -448,12 +496,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, Date):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value <= filter_value:
+            if all([cell_value <= value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -469,12 +522,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, Date):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value == filter_value:
+            if all([cell_value == value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -490,12 +548,17 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             return []
         cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name, True)
-        filter_value = self._handle_expression(value_expression)
-        if not isinstance(filter_value, Date):
-            raise ExecutionError(f"Invalid filter value: {value_expression}")
+        filter_values = self._handle_expression(value_expression)
+        if isinstance(filter_values, list) and filter_values:
+            if not isinstance(filter_values[0], Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+        else:
+            if not isinstance(filter_values, Date):
+                raise ExecutionError(f"Invalid filter value: {value_expression}")
+            filter_values = [filter_values]
         return_list = []
         for cell_value, row in cell_row_pairs:
-            if cell_value != filter_value:
+            if all([cell_value != value for value in filter_values]):
                 return_list.append(row)
         return return_list
 
@@ -512,21 +575,23 @@ class WikiTablesVariableFreeExecutor:
             return []
         expression_evaluation = self._handle_expression(value_expression)
         if isinstance(expression_evaluation, list) and expression_evaluation:
-            filter_value = expression_evaluation[0]
+            if not all([isinstance(item, str) for item in expression_evaluation]):
+                raise ExecutionError(f"Unexpected filter value for filter_in: {value_expression}")
+            filter_values = expression_evaluation
         elif isinstance(expression_evaluation, str):
-            filter_value = expression_evaluation
+            filter_values = [expression_evaluation]
         else:
-            raise ExecutionError(f"Unexprected filter value for filter_in: {value_expression}")
-        if not isinstance(filter_value, str):
-            raise ExecutionError(f"Unexprected filter value for filter_in: {value_expression}")
+            raise ExecutionError(f"Unexpected filter value for filter_in: {value_expression}")
         # Assuming filter value has underscores for spaces. The cell values also have underscores
         # for spaces, so we do not need to replace them here.
         result_list = []
         for row in row_list:
             if row[column_name] is None:
                 continue
-            if filter_value in row[column_name]:
-                result_list.append(row)
+            for filter_value in filter_values:
+                if filter_value in row[column_name]:
+                    result_list.append(row)
+                    break
         return result_list
 
     def filter_not_in(self,
@@ -542,19 +607,27 @@ class WikiTablesVariableFreeExecutor:
             return []
         expression_evaluation = self._handle_expression(value_expression)
         if isinstance(expression_evaluation, list) and expression_evaluation:
-            filter_value = expression_evaluation[0]
+            if not all([isinstance(item, str) for item in expression_evaluation]):
+                raise ExecutionError(f"Unexpected filter value for filter_in: {value_expression}")
+            filter_values = expression_evaluation
         elif isinstance(expression_evaluation, str):
-            filter_value = expression_evaluation
+            filter_values = [expression_evaluation]
         else:
-            raise ExecutionError(f"Unexprected filter value for filter_in: {value_expression}")
-        if not isinstance(filter_value, str):
-            raise ExecutionError(f"Unexprected filter value for filter_in: {value_expression}")
+            raise ExecutionError(f"Unexpected filter value for filter_in: {value_expression}")
         # Assuming filter value has underscores for spaces. The cell values also have underscores
         # for spaces, so we do not need to replace them here.
         result_list = []
         for row in row_list:
             cell_value = row[column_name]
-            if cell_value is None or filter_value not in cell_value:
+            if cell_value is None:
+                result_list.append(row)
+                continue
+            no_filter_value_in_cell = True
+            for filter_value in filter_values:
+                if filter_value in cell_value:
+                    no_filter_value_in_cell = False
+                    break
+            if no_filter_value_in_cell:
                 result_list.append(row)
         return result_list
 
@@ -591,13 +664,9 @@ class WikiTablesVariableFreeExecutor:
             logger.warning("Trying to get the previous row from an empty list: %s",
                            row_expression_list)
             return []
-        if len(row_list) > 1:
-            logger.warning("Trying to get the previous row from a non-singleton list: %s",
-                           row_expression_list)
-        input_row_index = self._get_row_index(row_list[0])  # Take the first row.
-        if input_row_index > 0:
-            return [self.table_data[input_row_index - 1]]
-        return []
+        input_row_indices = [self._get_row_index(row) for row in row_list]
+        previous_row_indices = [i-1 for i in input_row_indices if i > 0]
+        return [self.table_data[i] for i in previous_row_indices]
 
     def next(self, row_expression_list: NestedList) -> RowListType:
         """
@@ -609,24 +678,22 @@ class WikiTablesVariableFreeExecutor:
         if not row_list:
             logger.warning("Trying to get the next row from an empty list: %s", row_expression_list)
             return []
-        if len(row_list) > 1:
-            logger.warning("Trying to get the next row from a non-singleton list: %s", row_expression_list)
-        input_row_index = self._get_row_index(row_list[-1])  # Take the last row.
-        if input_row_index < len(self.table_data) - 1 and input_row_index != -1:
-            return [self.table_data[input_row_index + 1]]
-        return []
+        input_row_indices = [self._get_row_index(row) for row in row_list]
+        last_row_index = len(self.table_data) - 1
+        next_row_indices = [i+1 for i in input_row_indices if i+1 <= last_row_index and i != -1]
+        return [self.table_data[i] for i in next_row_indices]
 
-    def count(self, row_expression_list: NestedList) -> float:
+    def count(self, row_expression_list: NestedList) -> List[float]:
         """
-        Takes an expression that evaluates to a a list of rows and returns their count (as a float
-        to be consistent with the other functions like max that also return numbers).
+        Takes an expression that evaluates to a a list of rows and returns their count (as a list
+        with one float to be consistent with the other functions like max that also return numbers).
         """
         row_list: RowListType = self._handle_expression(row_expression_list)
-        return float(len(row_list))
+        return [float(len(row_list))]
 
     def max_number(self,
                    row_expression_list: NestedList,
-                   column_name: str) -> float:
+                   column_name: str) -> List[float]:
         """
         Takes an expression list that evaluates to a  list of rows and a column name, and returns the max
         of the values under that column in those rows.
@@ -634,12 +701,12 @@ class WikiTablesVariableFreeExecutor:
         row_list: RowListType = self._handle_expression(row_expression_list)
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
         if not cell_row_pairs:
-            return 0.0
-        return max([value for value, _ in cell_row_pairs])
+            return []
+        return [max([value for value, _ in cell_row_pairs])]
 
     def min_number(self,
                    row_expression_list: NestedList,
-                   column_name: str) -> float:
+                   column_name: str) -> List[float]:
         """
         Takes an expression list that evaluates to a  list of rows and a column, and returns the min
         of the values under that column in those rows.
@@ -647,12 +714,12 @@ class WikiTablesVariableFreeExecutor:
         row_list: RowListType = self._handle_expression(row_expression_list)
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
         if not cell_row_pairs:
-            return 0.0
-        return min([value for value, _ in cell_row_pairs])
+            return []
+        return [min([value for value, _ in cell_row_pairs])]
 
     def max_date(self,
                  row_expression_list: NestedList,
-                 column_name: str) -> Date:
+                 column_name: str) -> List[Date]:
         """
         Takes an expression list that evaluates to a  list of rows and a column name, and returns the max
         of the values under that column in those rows.
@@ -660,12 +727,12 @@ class WikiTablesVariableFreeExecutor:
         row_list: RowListType = self._handle_expression(row_expression_list)
         cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name)
         if not cell_row_pairs:
-            return Date(-1, -1, -1)
-        return max([value for value, _ in cell_row_pairs])
+            return []
+        return [max([value for value, _ in cell_row_pairs])]
 
     def min_date(self,
                  row_expression_list: NestedList,
-                 column_name: str) -> Date:
+                 column_name: str) -> List[Date]:
         """
         Takes an expression list that evaluates to a  list of rows and a column, and returns the min
         of the values under that column in those rows.
@@ -673,25 +740,23 @@ class WikiTablesVariableFreeExecutor:
         row_list: RowListType = self._handle_expression(row_expression_list)
         cell_row_pairs = self._get_date_row_pairs_to_filter(row_list, column_name)
         if not cell_row_pairs:
-            return Date(-1, -1, -1)
-        return min([value for value, _ in cell_row_pairs])
+            return []
+        return [min([value for value, _ in cell_row_pairs])]
 
     def sum(self,
             row_expression_list: NestedList,
-            column_name) -> float:
+            column_name) -> List[float]:
         """
         Takes an expression list that evaluates to a  list of rows and a column, and returns the sum
         of the values under that column in those rows.
         """
         row_list: RowListType = self._handle_expression(row_expression_list)
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
-        if not cell_row_pairs:
-            return 0.0
-        return sum([value for value, _ in cell_row_pairs])
+        return [sum([value for value, _ in cell_row_pairs])]
 
     def average(self,
                 row_expression_list: NestedList,
-                column_name: str) -> float:
+                column_name: str) -> List[float]:
         """
         Takes an expression list that evaluates to a  list of rows and a column, and returns the mean
         of the values under that column in those rows.
@@ -699,8 +764,8 @@ class WikiTablesVariableFreeExecutor:
         row_list: RowListType = self._handle_expression(row_expression_list)
         cell_row_pairs = self._get_number_row_pairs_to_filter(row_list, column_name)
         if not cell_row_pairs:
-            return 0.0
-        return sum([value for value, _ in cell_row_pairs]) / len(cell_row_pairs)
+            return [0.0]
+        return [sum([value for value, _ in cell_row_pairs]) / len(cell_row_pairs)]
 
     def mode_string(self,
                     row_expression_list: NestedList,
@@ -717,6 +782,9 @@ class WikiTablesVariableFreeExecutor:
         most_frequent_list: List[str] = []
         for row in row_list:
             cell_value = row[column_name]
+            # Ignore if cell value is None or an empty string
+            if not cell_value:
+                continue
             value_frequencies[cell_value] += 1
             frequency = value_frequencies[cell_value]
             if frequency > max_frequency:
@@ -728,7 +796,7 @@ class WikiTablesVariableFreeExecutor:
 
     def mode_number(self,
                     row_expression_list: NestedList,
-                    column_name: str) -> float:
+                    column_name: str) -> List[float]:
         """
         Takes an expression that evaluates to a list of rows, and a column and returns the most
         frequent values (one or more) under that column in those rows.
@@ -750,13 +818,11 @@ class WikiTablesVariableFreeExecutor:
                 most_frequent_list = [cell_value]
             elif frequency == max_frequency:
                 most_frequent_list.append(cell_value)
-        if not most_frequent_list:
-            return -1.0
-        return most_frequent_list[0]
+        return most_frequent_list
 
     def mode_date(self,
                   row_expression_list: NestedList,
-                  column_name: str) -> Date:
+                  column_name: str) -> List[Date]:
         """
         Takes an expression that evaluates to a list of rows, and a column and returns the most
         frequent values (one or more) under that column in those rows.
@@ -778,9 +844,7 @@ class WikiTablesVariableFreeExecutor:
                 most_frequent_list = [cell_value]
             elif frequency == max_frequency:
                 most_frequent_list.append(cell_value)
-        if not most_frequent_list:
-            return Date(-1, -1, -1)
-        return most_frequent_list[0]
+        return most_frequent_list
 
     def same_as(self,
                 row_expression_list: NestedList,
@@ -788,6 +852,7 @@ class WikiTablesVariableFreeExecutor:
         """
         Takes an expression that evaluates to a row, and a column and returns a list of rows from
         the full set of rows that contain the same value under the given column as the given row.
+        The returned set will not include the original row.
         """
         row_list: RowListType = self._handle_expression(row_expression_list)
         if not row_list:
@@ -798,14 +863,14 @@ class WikiTablesVariableFreeExecutor:
         cell_value = row_list[0][column_name]
         return_list = []
         for row in self.table_data:
-            if row[column_name] == cell_value:
+            if row[column_name] == cell_value and row != row_list[0]:
                 return_list.append(row)
         return return_list
 
     def diff(self,
              first_row_expression_list: NestedList,
              second_row_expression_list: NestedList,
-             column_name: str) -> float:
+             column_name: str) -> List[float]:
         """
         Takes an expressions that evaluate to two rows, and a column name, and returns the
         difference between the values under that column in those two rows.
@@ -813,7 +878,7 @@ class WikiTablesVariableFreeExecutor:
         first_row_list = self._handle_expression(first_row_expression_list)
         second_row_list = self._handle_expression(second_row_expression_list)
         if not first_row_list or not second_row_list:
-            return 0.0
+            return []
         if len(first_row_list) > 1:
             logger.warning("diff got multiple rows for first argument. Taking the first one: "
                            f"{first_row_expression_list}")
@@ -825,16 +890,16 @@ class WikiTablesVariableFreeExecutor:
         try:
             first_value = float(first_row[column_name])
             second_value = float(second_row[column_name])
-            return first_value - second_value
+            return [abs(first_value - second_value)]
         except ValueError:
             raise ExecutionError(f"Invalid column for diff: {column_name}")
         except TypeError:
             # This means one of the values is None. It happens when one of the rows does not have a
             # value in the corresponding column.
-            return 0.0
+            return []
 
     @staticmethod
-    def date(year_string: str, month_string: str, day_string: str) -> Date:
+    def date(year_string: str, month_string: str, day_string: str) -> List[Date]:
         """
         Takes three numbers as strings, and returns a ``Date`` object whose year, month, and day are
         the three numbers in that order.
@@ -843,6 +908,6 @@ class WikiTablesVariableFreeExecutor:
             year = int(str(year_string))
             month = int(str(month_string))
             day = int(str(day_string))
-            return Date(year, month, day)
+            return [Date(year, month, day)]
         except ValueError:
             raise ExecutionError(f"Invalid date! Got {year_string}, {month_string}, {day_string}")

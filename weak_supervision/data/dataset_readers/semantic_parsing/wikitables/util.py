@@ -87,6 +87,9 @@ def parse_example_line_with_labels(lisp_string: str) -> Dict:
         if string != "":
             target_values.append(string)
 
+    # This is to remove the escape characters (usually before quotes) that are already in the
+    # examples file. Not doing this may prevent some entities being extracted from the question.
+    question = question.replace("\\", "")
     return {'id': example_id,
             'question': question,
             'table_filename': table_filename,
@@ -113,6 +116,10 @@ def parse_example_line(lisp_string: str) -> Dict:
         string = string.replace(")", "").replace('"', '').strip()
         if string != "":
             target_values.append(string)
+
+    # This is to remove the escape characters (usually before quotes) that are already in the
+    # examples file. Not doing this may prevent some entities being extracted from the question.
+    question = question.replace("\\", "")
     return {'id': example_id,
             'question': question,
             'table_filename': table_filename,

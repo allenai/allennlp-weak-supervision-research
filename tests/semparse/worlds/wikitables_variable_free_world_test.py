@@ -270,12 +270,76 @@ class TestWikiTablesVariableFreeWorld(AllenNlpTestCase):
         # Conservative disallows "sum" for the question word "total" too.
         assert set(world.get_agenda(conservative=True)) == {'<r,<m,<d,r>>> -> filter_date_equals'}
 
+        tokens = [Token(x) for x in ['what', 'was', 'the', 'average', 'avg.', 'attendance', '?']]
+        world = self._get_world_with_question_tokens(tokens)
+        assert set(world.get_agenda()) == {'<r,<f,n>> -> average',
+                                           't -> string_column:avg_attendance',
+                                           'f -> number_column:avg_attendance'}
+        assert set(world.get_agenda(conservative=True)) == {'<r,<f,n>> -> average'}
+
+        tokens = [Token(x) for x in ['what', 'was', 'the', 'largest', 'avg.', 'attendance', '?']]
+        world = self._get_world_with_question_tokens(tokens)
+        assert set(world.get_agenda()) == {'<r,<c,r>> -> argmax',
+                                           't -> string_column:avg_attendance',
+                                           'f -> number_column:avg_attendance'}
+        assert set(world.get_agenda(conservative=True)) == {'<r,<c,r>> -> argmax'}
+
         tokens = [Token(x) for x in ['when', 'was', 'the', 'least', 'avg.', 'attendance', '?']]
         world = self._get_world_with_question_tokens(tokens)
         assert set(world.get_agenda()) == {'<r,<c,r>> -> argmin', 't -> string_column:avg_attendance',
                                            '<r,<m,d>> -> select_date',
                                            'f -> number_column:avg_attendance'}
         assert set(world.get_agenda(conservative=True)) == {'<r,<c,r>> -> argmin',
+                                                            '<r,<m,d>> -> select_date'}
+
+        tokens = [Token(x) for x in ['what', 'was', 'the', 'attendance', 'after', 'the',
+                                     'time', 'with', 'the', 'least', 'avg.', 'attendance', '?']]
+        world = self._get_world_with_question_tokens(tokens)
+        assert set(world.get_agenda()) == {'<r,<c,r>> -> argmin', 't -> string_column:avg_attendance',
+                                           '<r,r> -> next',
+                                           'f -> number_column:avg_attendance'}
+        # conservative disallows "after" mapping to "next"
+        assert set(world.get_agenda(conservative=True)) == {'<r,<c,r>> -> argmin'}
+
+        tokens = [Token(x) for x in ['what', 'was', 'the', 'attendance', 'below', 'the',
+                                     'row', 'with', 'the', 'least', 'avg.', 'attendance', '?']]
+        world = self._get_world_with_question_tokens(tokens)
+        assert set(world.get_agenda()) == {'<r,<c,r>> -> argmin', 't -> string_column:avg_attendance',
+                                           '<r,r> -> next',
+                                           'f -> number_column:avg_attendance'}
+        assert set(world.get_agenda(conservative=True)) == {'<r,<c,r>> -> argmin',
+                                                            '<r,r> -> next'}
+
+        tokens = [Token(x) for x in ['what', 'was', 'the', 'attendance', 'before', 'the',
+                                     'time', 'with', 'the', 'least', 'avg.', 'attendance', '?']]
+        world = self._get_world_with_question_tokens(tokens)
+        assert set(world.get_agenda()) == {'<r,<c,r>> -> argmin', 't -> string_column:avg_attendance',
+                                           '<r,r> -> previous',
+                                           'f -> number_column:avg_attendance'}
+        # conservative disallows "before" mapping to "previous"
+        assert set(world.get_agenda(conservative=True)) == {'<r,<c,r>> -> argmin'}
+
+        tokens = [Token(x) for x in ['what', 'was', 'the', 'attendance', 'above', 'the',
+                                     'row', 'with', 'the', 'least', 'avg.', 'attendance', '?']]
+        world = self._get_world_with_question_tokens(tokens)
+        assert set(world.get_agenda()) == {'<r,<c,r>> -> argmin', 't -> string_column:avg_attendance',
+                                           '<r,r> -> previous',
+                                           'f -> number_column:avg_attendance'}
+        assert set(world.get_agenda(conservative=True)) == {'<r,<c,r>> -> argmin',
+                                                            '<r,r> -> previous'}
+
+        tokens = [Token(x) for x in ['when', 'was', 'the', 'avg.', 'attendance', 'same', 'as', 'when',
+                                     'the', 'league', 'was', 'usl', 'a', 'league', '?']]
+        world = self._get_world_with_question_tokens(tokens)
+        assert set(world.get_agenda()) == {'t -> string_column:avg_attendance',
+                                           'f -> number_column:avg_attendance',
+                                           't -> string_column:league',
+                                           's -> string:usl_a_league',
+                                           '<r,<g,r>> -> same_as',
+                                           '<r,<m,d>> -> select_date'}
+        assert set(world.get_agenda(conservative=True)) == {'t -> string_column:league',
+                                                            's -> string:usl_a_league',
+                                                            '<r,<g,r>> -> same_as',
                                                             '<r,<m,d>> -> select_date'}
 
         tokens = [Token(x) for x in ['what', 'is', 'the', 'least', 'avg.', 'attendance', '?']]
@@ -313,6 +377,17 @@ class TestWikiTablesVariableFreeWorld(AllenNlpTestCase):
 
         tokens = [Token(x) for x in ['when', 'was', 'the', 'avg.', 'attendance', 'at', 'most',
                                      '7000', '?']]
+        world = self._get_world_with_question_tokens(tokens)
+        assert set(world.get_agenda()) == {'<r,<f,<n,r>>> -> filter_number_lesser_equals',
+                                           '<r,<m,d>> -> select_date',
+                                           'f -> number_column:avg_attendance',
+                                           't -> string_column:avg_attendance', 'n -> 7000'}
+        assert set(world.get_agenda(conservative=True)) == {'<r,<f,<n,r>>> -> filter_number_lesser_equals',
+                                                            '<r,<m,d>> -> select_date',
+                                                            'n -> 7000'}
+
+        tokens = [Token(x) for x in ['when', 'was', 'the', 'avg.', 'attendance', 'no', 'more',
+                                     'than', '7000', '?']]
         world = self._get_world_with_question_tokens(tokens)
         assert set(world.get_agenda()) == {'<r,<f,<n,r>>> -> filter_number_lesser_equals',
                                            '<r,<m,d>> -> select_date',

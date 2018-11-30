@@ -133,8 +133,7 @@ class ActionSpaceWalker:
         agenda_path_indices = [self._terminal_path_index[action] for action in agenda]
         if all([not path_indices for path_indices in agenda_path_indices]):
             if allow_partial_match:
-                logger.warning("""None of the agenda items is in any of the paths found. Returning all
-                                paths.""")
+                logger.warning("""Agenda items not in any of the paths found. Returning all paths.""")
                 return self.get_all_logical_forms(max_num_logical_forms)
             return []
         # We omit any agenda items that are not in any of the paths, since they would cause the

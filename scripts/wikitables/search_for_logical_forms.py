@@ -21,7 +21,8 @@ def search(tables_directory: str,
            max_path_length: int,
            max_num_logical_forms: int,
            use_agenda: bool,
-           output_separate_files: bool) -> None:
+           output_separate_files: bool,
+           conservative_agenda: bool) -> None:
     data = [wikitables_util.parse_example_line(example_line) for example_line in
             open(input_examples_file)]
     tokenizer = WordTokenizer()
@@ -44,10 +45,11 @@ def search(tables_directory: str,
         walker = ActionSpaceWalker(world, max_path_length=max_path_length)
         correct_logical_forms = []
         if use_agenda:
-            agenda = world.get_agenda()
+            agenda = world.get_agenda(conservative=conservative_agenda)
+            allow_partial_match = not conservative_agenda
             all_logical_forms = walker.get_logical_forms_with_agenda(agenda=agenda,
                                                                      max_num_logical_forms=10000,
-                                                                     allow_partial_match=True)
+                                                                     allow_partial_match=allow_partial_match)
         else:
             all_logical_forms = walker.get_all_logical_forms(max_num_logical_forms=10000)
         for logical_form in all_logical_forms:
@@ -83,11 +85,14 @@ if __name__ == "__main__":
     parser.add_argument("--max-num-logical-forms", type=int, dest="max_num_logical_forms",
                         default=100, help="Maximum number of logical forms returned")
     parser.add_argument("--use-agenda", dest="use_agenda", action="store_true",
-                        help="Use agenda to sort the output logical forms")
+                        help="Use agenda while searching for logical forms")
+    parser.add_argument("--conservative", action="store_true",
+                        help="Get conservative agenda, and select logical forms with complete match.")
     parser.add_argument("--output-separate-files", dest="output_separate_files",
                         action="store_true", help="""If set, the script will output gzipped
                         files, one per example. You may want to do this if you;re making data to
                         train a parser.""")
     args = parser.parse_args()
     search(args.table_directory, args.data_file, args.output_path, args.max_path_length,
-           args.max_num_logical_forms, args.use_agenda, args.output_separate_files)
+           args.max_num_logical_forms, args.use_agenda, args.output_separate_files,
+           args.conservative)

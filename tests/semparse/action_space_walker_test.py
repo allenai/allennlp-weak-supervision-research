@@ -104,7 +104,8 @@ class ActionSpaceWalkerTest(AllenNlpTestCase):
 
     def test_get_logical_forms_with_empty_agenda_returns_all_logical_forms(self):
         with self.assertLogs("weak_supervision.semparse.action_space_walker") as log:
-            empty_agenda_logical_forms = self.walker.get_logical_forms_with_agenda([])
+            empty_agenda_logical_forms = self.walker.get_logical_forms_with_agenda([],
+                                                                                   allow_partial_match=True)
             first_four_logical_forms = empty_agenda_logical_forms[:4]
             assert set(first_four_logical_forms) == {'(object_exists all_objects)',
                                                      '(object_exists (black all_objects))',

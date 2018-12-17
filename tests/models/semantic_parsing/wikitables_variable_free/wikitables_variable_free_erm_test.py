@@ -1,4 +1,4 @@
-# pylint: disable=no-self-use
+# pylint: disable=no-self-use,invalid-name
 import pytest
 from flaky import flaky
 
@@ -21,3 +21,9 @@ class WikiTablesVariableFreeErmTest(ModelTestCase):
         # gradient.
         ignore = {'_decoder_step._checklist_multiplier'}
         self.ensure_model_can_train_save_and_load(self.param_file, gradients_to_ignore=ignore)
+
+    @flaky
+    def test_sampling_model_can_train_save_and_load(self):
+        sampling_param_file = "fixtures/semantic_parsing/wikitables_variable_free/experiment-erm-sampling.json"
+        ignore = {'_decoder_step._checklist_multiplier'}
+        self.ensure_model_can_train_save_and_load(sampling_param_file, gradients_to_ignore=ignore)

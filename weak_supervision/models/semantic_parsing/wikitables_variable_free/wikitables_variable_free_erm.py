@@ -12,11 +12,11 @@ from allennlp.models.archival import load_archive, Archive
 from allennlp.models.model import Model
 from allennlp.modules import Attention, FeedForward, Seq2SeqEncoder, Seq2VecEncoder, TextFieldEmbedder
 from allennlp.state_machines.states import CoverageState, ChecklistStatelet
-from allennlp.state_machines.trainers import ExpectedRiskMinimization
 from allennlp.training.metrics import Average
 
 from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
 from weak_supervision.state_machines.transition_functions import LinkingCoverageTransitionFunction
+from weak_supervision.state_machines.trainers import ExpectedRiskMinimization
 from weak_supervision.models.semantic_parsing.wikitables_variable_free.wikitables_variable_free_parser \
         import WikiTablesVariableFreeParser
 
@@ -82,6 +82,10 @@ class WikiTablesVariableFreeErm(WikiTablesVariableFreeParser):
     mml_model_file : ``str``, optional (default=None)
         If you want to initialize this model using weights from another model trained using MML,
         pass the path to the ``model.tar.gz`` file of that model here.
+    use_sampling_during_training : ``bool``, optional (default=False)
+        If this is set, the trainer (ERM) will use sampling instead od beam search during training.
+        Note that this flag will have effect only during training. When not training, we force beam
+        search.
     """
     def __init__(self,
                  vocab: Vocabulary,
@@ -101,7 +105,8 @@ class WikiTablesVariableFreeErm(WikiTablesVariableFreeParser):
                  dropout: float = 0.0,
                  num_linking_features: int = 10,
                  rule_namespace: str = 'rule_labels',
-                 mml_model_file: str = None) -> None:
+                 mml_model_file: str = None,
+                 use_sampling_during_training: bool = False) -> None:
         use_similarity = use_neighbor_similarity_for_linking
         super().__init__(vocab=vocab,
                          question_embedder=question_embedder,
@@ -114,6 +119,7 @@ class WikiTablesVariableFreeErm(WikiTablesVariableFreeParser):
                          dropout=dropout,
                          num_linking_features=num_linking_features,
                          rule_namespace=rule_namespace)
+        self._use_sampling_during_training = use_sampling_during_training
         # Not sure why mypy needs a type annotation for this!
         self._decoder_trainer: ExpectedRiskMinimization = \
                 ExpectedRiskMinimization(beam_size=decoder_beam_size,
@@ -262,9 +268,12 @@ class WikiTablesVariableFreeErm(WikiTablesVariableFreeParser):
         if not self.training:
             initial_state.debug_info = [[] for _ in range(batch_size)]
 
-        outputs = self._decoder_trainer.decode(initial_state,  # type: ignore
-                                               self._decoder_step,
-                                               partial(self._get_state_cost, world))
+        # We're never using sampling if self.training is not True.
+        use_sampling = self.training and self._use_sampling_during_training
+        outputs = self._decoder_trainer.decode(initial_state=initial_state,  # type: ignore
+                                               transition_function=self._decoder_step,
+                                               supervision=partial(self._get_state_cost, world),
+                                               use_sampling=use_sampling)
         best_final_states = outputs['best_final_states']
 
         if not self.training:

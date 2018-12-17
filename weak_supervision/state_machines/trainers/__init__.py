@@ -1,0 +1,5 @@
+from weak_supervision.state_machines.trainers.dynamic_maximum_marginal_likelihood import DynamicMaximumMarginalLikelihood 
+from weak_supervision.state_machines.trainers.maximum_margin_trainer import MaxMarginTrainer
+from weak_supervision.state_machines.trainers.maximum_margin_average_violation import MaverTrainer
+from weak_supervision.state_machines.trainers.expected_risk_minimization import (
+        ExpectedRiskMinimization)

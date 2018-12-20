@@ -10,9 +10,10 @@ from allennlp.modules import Attention, FeedForward, Seq2SeqEncoder, Seq2VecEnco
 from allennlp.state_machines import BeamSearch
 from allennlp.state_machines.states import GrammarBasedState
 from allennlp.state_machines.trainers import MaximumMarginalLikelihood
-from allennlp.state_machines.transition_functions import LinkingTransitionFunction
 
 from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
+from weak_supervision.state_machines import GreedyEpsilonBeamSearch
+from weak_supervision.state_machines.transition_functions import LinkingTransitionFunction
 from weak_supervision.models.semantic_parsing.wikitables_variable_free.wikitables_variable_free_parser \
         import WikiTablesVariableFreeParser
 
